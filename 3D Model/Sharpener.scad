@@ -10,7 +10,7 @@ module SandSupport()
 {   
     d = 20;
     w = 3.0;
-    l = 4.9;
+    l = 4.0;
     
     difference()
     {
@@ -58,7 +58,7 @@ module Sharpener()
     }
 }
 
-//SandSupport();
+SandSupport();
 
 //GraphiteBar();
-Sharpener();
+//Sharpener();
