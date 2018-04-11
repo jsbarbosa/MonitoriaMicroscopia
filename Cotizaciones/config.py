@@ -1,0 +1,1 @@
+EQUIPOS = ["MBE", "AFM", "Confocal"]
