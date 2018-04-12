@@ -1,5 +1,4 @@
 import os
-import sys
 import codecs
 import datetime
 import numpy as np
@@ -7,20 +6,17 @@ import pandas as pd
 from unidecode import unidecode
 from PyQt5 import QtCore, QtGui, QtWidgets
 
+import lib
 import config
+import constants
 
-for item in config.EQUIPOS:
-    data = pd.read_excel('%s.xlsx'%item)
-    exec("%s = data"%item)
+CLIENTES_DATAFRAME = pd.read_excel(constants.CLIENTES_FILE)
+REGISTRO_DATAFRAME = pd.read_excel(constants.REGISTRO_FILE)
 
-OLD_DIR = "Old"
-
-CLIENTES_DATAFRAME = pd.read_excel("Clientes.xlsx")
-REGISTRO_DATAFRAME = pd.read_excel("Registro.xlsx")
 
 class Table(QtWidgets.QTableWidget):
     HEADER = ['Código', 'Descripción', 'Cantidad', 'Precio Unitario', 'Precio Total']
-    def __init__(self, parent, rows = 15, cols = 5):
+    def __init__(self, parent, rows = 10, cols = 5):
         super(QtWidgets.QTableWidget, self).__init__(rows, cols)
 
         self.parent = parent
@@ -46,7 +42,7 @@ class Table(QtWidgets.QTableWidget):
     def handler(self, row, col):
         item = self.item(row, col)
         if col == 0:
-            equipo = eval(self.parent.equipo_widget.currentText())
+            equipo = eval("constants.%s"%self.parent.equipo_widget.currentText())
             interno = self.parent.interno_widget.checkState()
 
             val = "Externo"
@@ -95,6 +91,14 @@ class Table(QtWidgets.QTableWidget):
                 val = 0
             total += val
         return "{:,}".format(total)
+
+    def setCodigos(self, codigos):
+        for i in range(len(codigos)):
+            self.item(i, 0).setText(codigos[i])
+
+    def setCantidades(self, cantidades):
+        for i in range(len(cantidades)):
+            self.item(i, 2).setText(cantidades[i])
 
     def getCodigos(self):
         return [self.item(i, 0).text() for i in range(self.n_rows)]
@@ -232,6 +236,7 @@ class ChangeCotizacion(QtWidgets.QDialog):
 
     def accept2(self):
         self.parent.loadCotizacion(self.cotizacion_widget.text())
+        self.accept()
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -246,7 +251,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         wid = QtWidgets.QWidget(self)
         self.setCentralWidget(wid)
-        self.resize(600, 500)
+        self.resize(600, 570)
 
         self.verticalLayout = QtWidgets.QVBoxLayout(wid)
 
@@ -374,6 +379,13 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.changeEquipo(0)
 
+        self.centerOnScreen()
+
+    def centerOnScreen(self):
+        resolution = QtWidgets.QDesktopWidget().screenGeometry()
+        self.move((resolution.width() / 2) - (self.frameSize().width() / 2),
+                  (resolution.height() / 2) - (self.frameSize().height() / 2))
+
     def getFields(self):
         ans = []
         for item in self.FIELDS:
@@ -403,7 +415,19 @@ class MainWindow(QtWidgets.QMainWindow):
         temp.exec_()
 
     def loadCotizacion(self, name):
-        print(name)
+        try:
+            path = os.path.join(constants.OLD_DIR, name + ".py")
+            c = lib.Cotizacion(path)
+            for widget in self.WIDGETS:
+                val = eval("c.%s"%widget)
+                exec("self.%s_widget.setText('%s')"%(widget, val))
+
+            self.table.setCodigos(c.codigos)
+            self.table.setCantidades(c.cantidades)
+
+            self.numero_cotizacion.setText(name)
+        except FileNotFoundError as e:
+            self.errorWindow(e)
 
     def changeEquipo(self, index):
         year = str(datetime.datetime.now().year)[-2:]
@@ -427,27 +451,40 @@ class MainWindow(QtWidgets.QMainWindow):
         if year > int(cod[1:]): print("Here"); return 0
         else: return int(last)
 
+    def generatePDF(self, cotizacion):
+        cotizacion = lib.Cotizacion(cotizacion)
+        lib.PDFFile(cotizacion)
 
     def guardar(self):
         global CLIENTES_DATAFRAME, REGISTRO_DATAFRAME
         try:
             fields = self.getFields()
             last = CLIENTES_DATAFRAME.shape[0]
+
+            fields2 = fields[:4] + fields[7:]
+
+
+            fecha = datetime.datetime.now()
+            equipo = self.equipo_widget.currentText()
+            valor = int(self.total_widget.text().replace(",", ""))
+
+            codigos = self.table.getCodigos()
+
+            if all(item == "" for item in codigos):
+                raise(Exception("Ningún servicio ha sido cotizado."))
+
+            codigos = str(codigos)
+            cantidades = str(self.table.getCantidades())
+
             CLIENTES_DATAFRAME.loc[last] = fields[:-3]
             CLIENTES_DATAFRAME = CLIENTES_DATAFRAME.drop_duplicates("Nombre", "last")
             CLIENTES_DATAFRAME = CLIENTES_DATAFRAME.sort_values("Nombre")
             CLIENTES_DATAFRAME.to_excel("Clientes.xlsx", index = False)
 
-            fields2 = fields[:4] + fields[7:]
-
             last = self.numero_cotizacion.text()
-            fecha = datetime.datetime.now()
-            equipo = self.equipo_widget.currentText()
-            valor = int(self.total_widget.text().replace(",", ""))
-
+            last_index = REGISTRO_DATAFRAME.shape[0]
             fields2 = [last, fecha] + fields2 + [equipo, valor]
 
-            last_index = REGISTRO_DATAFRAME.shape[0]
             REGISTRO_DATAFRAME.loc[last_index] = fields2
 
             REGISTRO_DATAFRAME = REGISTRO_DATAFRAME.drop_duplicates("Cotización", "last")
@@ -458,8 +495,6 @@ class MainWindow(QtWidgets.QMainWindow):
                         datetime_format= "dd/mm/yy hh:mm:ss")
 
             REGISTRO_DATAFRAME.to_excel(writer, index = False)
-            codigos = str(self.table.getCodigos())
-            cantidades = str(self.table.getCantidades())
 
             txt = []
             for i in range(len(fields)):
@@ -470,8 +505,11 @@ class MainWindow(QtWidgets.QMainWindow):
 
             txt = "\n".join(txt)
 
-            with open(os.path.join(OLD_DIR, last + ".py"), "w") as file:
+            filename = os.path.join(constants.OLD_DIR, last + ".py")
+            with open(filename, "w") as file:
                 file.write(txt)
+
+            self.generatePDF(filename)
 
             self.nombre_widget.update()
             self.limpiar()
@@ -506,20 +544,3 @@ class MainWindow(QtWidgets.QMainWindow):
             self.responsable_widget.setText("")
 
         self.table.updateInterno()
-
-if os.path.isdir(OLD_DIR): pass
-else: os.makedirs(OLD_DIR)
-
-app = QtWidgets.QApplication(sys.argv)
-QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create('Fusion')) # <- Choose the style
-
-# print(QtWidgets.QStyleFactory.keys())
-
-# icon = QtGui.QIcon(':/abacus_small.ico')
-# app.setWindowIcon(icon)
-app.processEvents()
-
-main = MainWindow()
-# main.setWindowIcon(icon)
-main.show()
-app.exec_()
