@@ -168,13 +168,13 @@ class PDFCotizacion():
     def __init__(self, cotizacion):
         name = cotizacion.id + ".pdf"
         name = os.path.join(constants.PDF_DIR, name)
-        doc = SimpleDocTemplate(name, pagesize = letter,
+        self.doc = SimpleDocTemplate(name, pagesize = letter,
                                 rightMargin = cm, leftMargin = cm,
                                 topMargin = cm, bottomMargin = cm)
         #Two Columns
         h = 4*cm
-        frame1 = Frame(doc.leftMargin, doc.bottomMargin + doc.height - h, doc.width / 2 - 6, h, id='col1')
-        frame2 = Frame(doc.leftMargin + doc.width / 2 + 2*cm, doc.bottomMargin + doc.height - h, doc.width / 2 - 6, h, id='col2')
+        frame1 = Frame(self.doc.leftMargin, self.doc.bottomMargin + self.doc.height - h, self.doc.width / 2 - 6, h, id='col1')
+        frame2 = Frame(self.doc.leftMargin + self.doc.width / 2 + 2*cm, self.doc.bottomMargin + self.doc.height - h, self.doc.width / 2 - 6, h, id='col2')
 
         space = 0.5*cm
         info_h = 4*cm
@@ -182,16 +182,16 @@ class PDFCotizacion():
         observaciones_h = 3*cm
         terminos_h = 2.5*cm
 
-        last_h = doc.bottomMargin + doc.height - h
-        info_frame = Frame(doc.leftMargin, last_h - info_h - space, doc.width, info_h, showBoundary = 1)
+        last_h = self.doc.bottomMargin + self.doc.height - h
+        info_frame = Frame(self.doc.leftMargin, last_h - info_h - space, self.doc.width, info_h, showBoundary = 1)
         last_h += - info_h - space
-        table_frame = Frame(doc.leftMargin, last_h - table_h - space, doc.width, table_h)
+        table_frame = Frame(self.doc.leftMargin, last_h - table_h - space, self.doc.width, table_h)
         last_h += - table_h - space
-        observaciones_frame = Frame(doc.leftMargin, last_h - observaciones_h - space, doc.width, observaciones_h, showBoundary = 1)
+        observaciones_frame = Frame(self.doc.leftMargin, last_h - observaciones_h - space, self.doc.width, observaciones_h, showBoundary = 1)
         last_h += - observaciones_h - space
-        terminos_frame = Frame(doc.leftMargin, last_h - terminos_h - space, doc.width, terminos_h, showBoundary = 1)
+        terminos_frame = Frame(self.doc.leftMargin, last_h - terminos_h - space, self.doc.width, terminos_h, showBoundary = 1)
         last_h += - terminos_h - space
-        end_frame = Frame(doc.leftMargin, last_h - 3*cm - space, doc.width, 3*cm)
+        end_frame = Frame(self.doc.leftMargin, last_h - 3*cm - space, self.doc.width, 3*cm)
 
         styles = getSampleStyleSheet()
         styles.add(ParagraphStyle(name = 'Center', alignment = TA_CENTER))
@@ -353,14 +353,27 @@ class PDFCotizacion():
             else:
                 ptext = '<font size = 10>%s</font>'%text
             Story.append(Paragraph(ptext, styles["Center"]))
-        doc.addPageTemplates([PageTemplate(id='TwoCol',frames=[frame1, frame2, info_frame, table_frame, observaciones_frame, terminos_frame, end_frame]), ])
-        doc.build(Story)
+
+        self.doc.addPageTemplates([PageTemplate(frames=[frame1, frame2, info_frame, table_frame, observaciones_frame, terminos_frame, end_frame], onPage = self.drawPage), ])
+        self.doc.build(Story)
+
+    def drawPage(self, canvas, doc):
+        canvas.setTitle("Centro de Microscopía")
+        canvas.setSubject("Cotización")
+        canvas.setAuthor("Juan Barbosa")
+        canvas.setCreator("MicroBill")
+        styles = getSampleStyleSheet()
+
+        P = Paragraph("<font size = 8>Creado usando MicroBill - Juan Barbosa (github.com/jsbarbosa)</font>",
+                  styles["Normal"])
+        w, h = P.wrap(doc.width, doc.bottomMargin)
+        P.drawOn(canvas, doc.leftMargin, h)
 
 class PDFReporte():
     def __init__(self, cotizacion):
         name = cotizacion.id + "_Reporte.pdf"
         name = os.path.join(constants.PDF_DIR, name)
-        doc = SimpleDocTemplate(name, pagesize = letter,
+        self.doc = SimpleDocTemplate(name, pagesize = letter,
                                 rightMargin = cm, leftMargin = cm,
                                 topMargin = cm, bottomMargin = cm)
 
@@ -370,8 +383,8 @@ class PDFReporte():
 
         #Two Columns
         h = 3*cm
-        frame1 = Frame(doc.leftMargin, doc.bottomMargin + doc.height - h, doc.width / 2 - 6, h, id='col1')
-        frame2 = Frame(doc.leftMargin + doc.width / 2 + 2*cm, doc.bottomMargin + doc.height - h, doc.width / 2 - 6, h, id='col2')
+        frame1 = Frame(self.doc.leftMargin, self.doc.bottomMargin + self.doc.height - h, self.doc.width / 2 - 6, h, id='col1')
+        frame2 = Frame(self.doc.leftMargin + self.doc.width / 2 + 2*cm, self.doc.bottomMargin + self.doc.height - h, self.doc.width / 2 - 6, h, id='col2')
 
         space = 0.5*cm
         info_h = 4*cm
@@ -379,11 +392,11 @@ class PDFReporte():
         observaciones_h = (len(resumen) + 2)*15
         terminos_h = 2.5*cm
 
-        last_h = doc.bottomMargin + doc.height - h
-        info_frame = Frame(doc.leftMargin, last_h - info_h - space, doc.width, info_h, showBoundary = 1)
+        last_h = self.doc.bottomMargin + self.doc.height - h
+        info_frame = Frame(self.doc.leftMargin, last_h - info_h - space, self.doc.width, info_h, showBoundary = 1)
         last_h += -info_h - space
 
-        table_frame = Frame(doc.leftMargin, doc.bottomMargin, doc.width, last_h - cm)
+        table_frame = Frame(self.doc.leftMargin, self.doc.bottomMargin, self.doc.width, last_h - cm)
 
         styles = getSampleStyleSheet()
         styles.add(ParagraphStyle(name = 'Center', alignment = TA_CENTER))
@@ -517,6 +530,18 @@ class PDFReporte():
                 ptext = '<font size = 10>%s</font>'%text
             Story.append(Paragraph(ptext, styles["Center"]))
 
-        doc.addPageTemplates([PageTemplate(frames = [frame1, frame2, info_frame, table_frame]), ])
+        self.doc.addPageTemplates([PageTemplate(frames = [frame1, frame2, info_frame, table_frame], onPage = self.drawPage), ])
 
-        doc.build(Story)
+        self.doc.build(Story)
+
+    def drawPage(self, canvas, doc):
+        canvas.setTitle("Centro de Microscopía")
+        canvas.setSubject("Reporte")
+        canvas.setAuthor("Juan Barbosa")
+        canvas.setCreator("MicroBill")
+        styles = getSampleStyleSheet()
+
+        P = Paragraph("<font size = 8>Creado usando MicroBill - Juan Barbosa (github.com/jsbarbosa)</font>",
+                  styles["Normal"])
+        w, h = P.wrap(doc.width, doc.bottomMargin)
+        P.drawOn(canvas, doc.leftMargin, h)

@@ -22,14 +22,12 @@ else: os.makedirs(constants.PDF_DIR)
 app = QtWidgets.QApplication(sys.argv)
 QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create('Fusion')) # <- Choose the style
 
-# print(QtWidgets.QStyleFactory.keys())
-
-# icon = QtGui.QIcon(':/abacus_small.ico')
-# app.setWindowIcon(icon)
+icon = QtGui.QIcon('icon.ico')
+app.setWindowIcon(icon)
 app.processEvents()
 
 # main = CotizacionWindow()
 main = MainWindow()
-# main.setWindowIcon(icon)
+main.setWindowIcon(icon)
 main.show()
 app.exec_()

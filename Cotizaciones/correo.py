@@ -51,7 +51,7 @@ def sendEmail(to, subject, text, attachments = []):
         pass
 
 def sendCotizacion(to, file_name):
-    sendEmail(to, COTIZACION_SUBJECT, COTIZACION_MENSAJE, [file_name])
+    sendEmail(to, COTIZACION_SUBJECT + " - %s"%file_name, COTIZACION_MENSAJE, [file_name])
 
 def sendRegistro(to, file_name):
-    sendEmail(to, REPORTE_SUBJECT, REPORTE_MENSAJE, [file_name + "_Reporte"])
+    sendEmail(to, REPORTE_SUBJECT + " - %s"%file_name, REPORTE_MENSAJE, [file_name + "_Reporte"])
