@@ -1,12 +1,16 @@
 import os
 import codecs
 import datetime
+import traceback
 import numpy as np
 import pandas as pd
+from time import sleep
+from threading import Thread
 from unidecode import unidecode
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 import lib
+import correo
 import config
 import constants
 
@@ -41,45 +45,58 @@ class Table(QtWidgets.QTableWidget):
 
     def handler(self, row, col):
         item = self.item(row, col)
-        if col == 0:
-            equipo = eval("constants.%s"%self.parent.equipo_widget.currentText())
-            interno = self.parent.interno_widget.checkState()
 
-            val = "Externo"
-            if interno: val = "Interno"
+        try:
+            if col == 0:
+                equipo = eval("constants.%s"%self.parent.equipo_widget.currentText())
+                interno = self.parent.interno_widget.checkState()
 
-            try:
-                cod = int(str(int(item.text()))[-1])
-            except:
-                cod = -1
+                val = "Externo"
+                if interno: val = "Interno"
 
-            line = equipo[equipo["Código"] == cod]
-            if line.shape[0] == 1:
-                d = line["Descripción"].values[0]
-                val = line[val].values[0]
+                try: cod = int(str(int(item.text()))[-1])
+                except: cod = -1
 
-                self.item(row, 1).setText(d)
-                self.item(row, 3).setText("{:,}".format(val))
-
+                t = []
                 try:
+                    t = [self.item(i, 0).text() for i in range(self.n_rows)]
+                    del t[row]
+                except:
+                    pass
+
+                if str(cod) in t:
+                    self.item(row, 0).setText('')
+                    raise(Exception("Código %d ya se encuentra registrado."%cod))
+
+                line = equipo[equipo["Código"] == cod]
+                if line.shape[0] == 1:
+                    d = line["Descripción"].values[0]
+                    val = line[val].values[0]
+
+                    self.item(row, 1).setText(d)
+                    self.item(row, 3).setText("{:,}".format(val))
+
+                    try:
+                        n = int(self.item(row, 2).text().replace(",", ""))
+                    except:
+                        n = 1
+
+                    self.item(row, 4).setText("{:,}".format(val * n))
+
+            if col == 2:
+                try:
+                    val = int(self.item(row, 3).text().replace(",", ""))
                     n = int(self.item(row, 2).text().replace(",", ""))
                 except:
+                    val = 0
                     n = 1
 
                 self.item(row, 4).setText("{:,}".format(val * n))
 
-        if col == 2:
-            try:
-                val = int(self.item(row, 3).text().replace(",", ""))
-                n = int(self.item(row, 2).text().replace(",", ""))
-            except:
-                val = 0
-                n = 1
-
-            self.item(row, 4).setText("{:,}".format(val * n))
-
-        total = self.getTotal()
-        self.parent.total_widget.setText(total)
+            total = self.getTotal()
+            self.parent.total_widget.setText(total)
+        except Exception as e:
+            self.parent.errorWindow(e)
 
     def getTotal(self):
         total = 0
@@ -144,10 +161,10 @@ class AutoLineEdit(QtWidgets.QLineEdit):
         self.textChanged.connect(self.change)
 
     def change(self, value):
-        if type(self.parent) is MainWindow:
+        if type(self.parent) is CotizacionWindow:
             dataframe = CLIENTES_DATAFRAME
             range_ = len(self.parent.FIELDS) -3
-        elif type(self.parent) is ChangeCotizacion:
+        elif (type(self.parent) is ChangeCotizacion) or (type(self.parent) is DescontarWindow):
             dataframe = REGISTRO_DATAFRAME
             range_ = len(self.parent.FIELDS)
 
@@ -174,10 +191,10 @@ class AutoLineEdit(QtWidgets.QLineEdit):
                         else: self.parent.interno_widget.setCheckState(2)
 
     def update(self):
-        if type(self.parent) is MainWindow:
+        if type(self.parent) is CotizacionWindow:
             dataframe = CLIENTES_DATAFRAME
             order = 1
-        elif type(self.parent) is ChangeCotizacion:
+        elif (type(self.parent) is ChangeCotizacion) or (type(self.parent) is DescontarWindow):
             dataframe = REGISTRO_DATAFRAME
             order = -1
         data = list(set(dataframe[self.target].values.astype('str')))
@@ -239,7 +256,7 @@ class ChangeCotizacion(QtWidgets.QDialog):
         self.accept()
 
 
-class MainWindow(QtWidgets.QMainWindow):
+class CotizacionWindow(QtWidgets.QMainWindow):
     IGNORE = ["Proyecto", "Código"]
     FIELDS = ["Nombre", "Correo", "Teléfono", "Institución", "Documento", "Dirección", "Ciudad", "Interno", "Responsable", "Proyecto", "Código", "Muestra"]
     WIDGETS = ["nombre", "correo", "telefono", "institucion", "documento", "direccion", "ciudad", "interno", "responsable", "proyecto", "codigo", "muestra"]
@@ -340,8 +357,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.table = Table(self)
 
         self.button_frame_layout = QtWidgets.QHBoxLayout(self.button_frame)
+        self.notificar_widget = QtWidgets.QCheckBox()
+        self.notificar_widget.setCheckState(2)
+        notificar = QtWidgets.QLabel("Notificar")
         self.guardar_button = QtWidgets.QPushButton("Guardar")
         self.limpiar_button = QtWidgets.QPushButton("Limpiar")
+
+        self.button_frame_layout.addWidget(self.notificar_widget)
+        self.button_frame_layout.addWidget(notificar)
         self.button_frame_layout.addWidget(self.guardar_button)
         self.button_frame_layout.addWidget(self.limpiar_button)
 
@@ -378,7 +401,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.equipo_widget.currentIndexChanged.connect(self.changeEquipo)
 
         self.changeEquipo(0)
-
         self.centerOnScreen()
 
     def centerOnScreen(self):
@@ -452,8 +474,22 @@ class MainWindow(QtWidgets.QMainWindow):
         else: return int(last)
 
     def generatePDF(self, cotizacion):
+        cotizacion = os.path.join(constants.OLD_DIR, cotizacion + ".py")
         cotizacion = lib.Cotizacion(cotizacion)
-        lib.PDFFile(cotizacion)
+        lib.PDFCotizacion(cotizacion)
+
+    def sendEmail(self, to, file):
+        if self.notificar_widget.isChecked():
+            thread = Thread(target = correo.sendCotizacion, args = (to, file))
+            # thread.setDaemon(True)
+            thread.start()
+        else:
+            msg = QtWidgets.QMessageBox()
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.setText("El usuario no será notificado.")
+            msg.setWindowTitle("Warning")
+            msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg.exec_()
 
     def guardar(self):
         global CLIENTES_DATAFRAME, REGISTRO_DATAFRAME
@@ -463,18 +499,22 @@ class MainWindow(QtWidgets.QMainWindow):
 
             fields2 = fields[:4] + fields[7:]
 
-
             fecha = datetime.datetime.now()
             equipo = self.equipo_widget.currentText()
             valor = int(self.total_widget.text().replace(",", ""))
 
             codigos = self.table.getCodigos()
+            cantidades = self.table.getCantidades()
 
             if all(item == "" for item in codigos):
                 raise(Exception("Ningún servicio ha sido cotizado."))
 
+            for i in range(len(codigos)):
+                if codigos[i] != "":
+                    codigos[i] = codigos[i][-1]
+                    if cantidades[i] == "": cantidades[i] = "1"
             codigos = str(codigos)
-            cantidades = str(self.table.getCantidades())
+            cantidades = str(cantidades)
 
             CLIENTES_DATAFRAME.loc[last] = fields[:-3]
             CLIENTES_DATAFRAME = CLIENTES_DATAFRAME.drop_duplicates("Nombre", "last")
@@ -496,25 +536,20 @@ class MainWindow(QtWidgets.QMainWindow):
 
             REGISTRO_DATAFRAME.to_excel(writer, index = False)
 
-            txt = []
-            for i in range(len(fields)):
-                txt.append("%s = '%s'"%(self.WIDGETS[i], fields[i]))
-            txt.append("equipo = '%s'"%self.equipo_widget.currentText())
-            txt.append("codigos = %s"%codigos)
-            txt.append("cantidades = %s"%cantidades)
+            fields.append(last)
+            cot = lib.Cotizacion(fields, equipo, codigos, cantidades)
+            cot.save()
+            self.generatePDF(cot.id)
 
-            txt = "\n".join(txt)
-
-            filename = os.path.join(constants.OLD_DIR, last + ".py")
-            with open(filename, "w") as file:
-                file.write(txt)
-
-            self.generatePDF(filename)
+            self.sendEmail(cot.correo, cot.id)
+            # if self.notificar.isChecked():
+            # correo.sendCotizacion(cot.correo, )
 
             self.nombre_widget.update()
             self.limpiar()
 
         except Exception as e:
+            traceback.print_exc()
             self.errorWindow(e)
 
         self.changeEquipo(0)
@@ -533,14 +568,190 @@ class MainWindow(QtWidgets.QMainWindow):
         msg.setIcon(QtWidgets.QMessageBox.Warning)
         msg.setText(error_text)
         msg.setWindowTitle("Error")
-        msg.setStandardButtons(QtWidgets.QMessageBox.Ok | QtWidgets.QMessageBox.Cancel)
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
         msg.exec_()
 
     def internoHandler(self, state):
         if state == 2:
             self.responsable_widget.setEnabled(True)
+            self.proyecto_widget.setEnabled(True)
+            self.codigo_widget.setEnabled(True)
         else:
             self.responsable_widget.setEnabled(False)
+            self.proyecto_widget.setEnabled(False)
+            self.codigo_widget.setEnabled(False)
             self.responsable_widget.setText("")
+            self.proyecto_widget.setText("")
+            self.codigo_widget.setText("")
 
         self.table.updateInterno()
+
+
+class DescontarWindow(QtWidgets.QMainWindow):
+    FIELDS = ["Cotización", "Fecha", "Nombre", "Correo", "Equipo", "Valor"]
+    WIDGETS = ["cotizacion", "fecha", "nombre", "correo", "equipo", "valor"]
+
+    def __init__(self, parent = None):
+        super(QtWidgets.QMainWindow, self).__init__(parent)
+        self.setWindowTitle("Descontar servicios")
+
+        wid = QtWidgets.QWidget(self)
+        self.setCentralWidget(wid)
+
+        self.layout = QtWidgets.QVBoxLayout(wid)
+        self.form = QtWidgets.QFrame()
+        self.form_layout = QtWidgets.QFormLayout(self.form)
+        cotizacion_label = QtWidgets.QLabel("Cotización:")
+        self.cotizacion_widget = AutoLineEdit("Cotización", self)
+        fecha_label = QtWidgets.QLabel("Fecha:")
+        self.fecha_widget = QtWidgets.QLabel("")
+        nombre_label = QtWidgets.QLabel("Nombre:")
+        self.nombre_widget = QtWidgets.QLabel("")
+        correo_label = QtWidgets.QLabel("Correo:")
+        self.correo_widget = QtWidgets.QLabel("")
+        equipo_label = QtWidgets.QLabel("Equipo:")
+        self.equipo_widget = QtWidgets.QLabel("")
+        valor_label = QtWidgets.QLabel("Valor:")
+        self.valor_widget = QtWidgets.QLabel("")
+
+        self.form_layout.addRow(cotizacion_label, self.cotizacion_widget)
+        self.form_layout.addRow(fecha_label, self.fecha_widget)
+        self.form_layout.addRow(nombre_label, self.nombre_widget)
+        self.form_layout.addRow(correo_label, self.correo_widget)
+        self.form_layout.addRow(equipo_label, self.equipo_widget)
+        self.form_layout.addRow(valor_label, self.valor_widget)
+
+        self.layout.addWidget(self.form)
+
+        self.item_frame = QtWidgets.QFrame()
+        self.item_frame.setFrameStyle(1)
+        self.item_layout = QtWidgets.QGridLayout(self.item_frame)
+        cod = QtWidgets.QLabel("Código")
+        des = QtWidgets.QLabel("Descripción")
+        n = QtWidgets.QLabel("Cantidad")
+        self.item_layout.addWidget(cod, 0, 0)
+        self.item_layout.addWidget(des, 0, 1)
+        self.item_layout.addWidget(n, 0, 2)
+
+        self.layout.addWidget(self.item_frame)
+
+        self.buttons_frame = QtWidgets.QFrame()
+        self.buttons_layout = QtWidgets.QHBoxLayout(self.buttons_frame)
+        self.guardar_button = QtWidgets.QPushButton("Guardar")
+        self.notificar_widget = QtWidgets.QCheckBox()
+        self.notificar_widget.setCheckState(2)
+        notificar = QtWidgets.QLabel("Notificar")
+
+        self.buttons_layout.addWidget(self.notificar_widget)
+        self.buttons_layout.addWidget(notificar)
+        self.buttons_layout.addWidget(self.guardar_button)
+
+        self.layout.addWidget(self.buttons_frame)
+
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
+        self.buttons_frame.setSizePolicy(sizePolicy)
+        self.buttons_layout.setAlignment(QtCore.Qt.AlignRight)
+
+        self.cotizacion_widget.textChanged.connect(self.cotizacionChanged)
+        self.guardar_button.clicked.connect(self.guardarHandler)
+
+        self.floats_labels = []
+        self.floats_spins = []
+        self.cotizacion = None
+        self.init_size = (400, 100)
+        self.resize(*self.init_size)
+
+    def guardarHandler(self):
+        if self.cotizacion != None:
+            vals = [spin.value() for spin in self.floats_spins]
+            self.cotizacion.makeRegister(vals)
+            lib.PDFReporte(self.cotizacion)
+            self.sendEmail(self.cotizacion.correo, self.cotizacion.id)
+            for widget in self.WIDGETS: exec("self.%s_widget.setText('')"%widget)
+
+    def sendEmail(self, to, file):
+        if self.notificar_widget.isChecked():
+            thread = Thread(target = correo.sendRegistro, args = (to, file))
+            # thread.setDaemon(True)
+            thread.start()
+        else:
+            msg = QtWidgets.QMessageBox()
+            msg.setIcon(QtWidgets.QMessageBox.Warning)
+            msg.setText("El usuario no será notificado.")
+            msg.setWindowTitle("Warning")
+            msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+            msg.exec_()
+
+    def cotizacionChanged(self):
+        n = 0
+        text = self.cotizacion_widget.text()
+        self.cleanWidgets()
+        try:
+            file = os.path.join(constants.OLD_DIR, text + ".py")
+            self.cotizacion = lib.Cotizacion(file)
+            table = self.cotizacion.descontarTable()
+            n = table.shape[0]
+        except: pass
+
+        for i in range(n):
+            cod = QtWidgets.QLabel(table[i, 0])
+            dec = QtWidgets.QLabel(table[i, 1])
+            paid = int(table[i, 2])
+            used = int(table[i, 3])
+            spin = QtWidgets.QSpinBox()
+            total = QtWidgets.QLabel("%d/%d"%(used, paid))
+            spin.setMinimum(0)
+            spin.setMaximum(paid - used)
+            self.item_layout.addWidget(cod, i + 1, 0)
+            self.item_layout.addWidget(dec, i + 1, 1)
+            self.item_layout.addWidget(spin, i + 1, 2)
+            self.item_layout.addWidget(total, i + 1, 3)
+            self.floats_labels.append(cod)
+            self.floats_labels.append(dec)
+            self.floats_spins.append(spin)
+            self.floats_labels.append(total)
+
+    def cleanWidgets(self):
+        for item in self.floats_labels:
+            self.item_layout.removeWidget(item)
+            item.deleteLater()
+        for item in self.floats_spins:
+            self.item_layout.removeWidget(item)
+            item.deleteLater()
+        self.floats_labels = []
+        self.floats_spins = []
+        self.cotizacion = None
+        self.resize(*self.init_size)
+
+class MainWindow(QtWidgets.QMainWindow):
+    def __init__(self, parent = None):
+        super(QtWidgets.QMainWindow, self).__init__(parent)
+        self.setWindowTitle("Centro de Microscopía")
+
+        wid = QtWidgets.QWidget(self)
+        self.setCentralWidget(wid)
+
+        self.layout = QtWidgets.QHBoxLayout(wid)
+
+        self.cotizacion_widget = QtWidgets.QPushButton("Generar/Modificar Cotización")
+        self.descontar_widget = QtWidgets.QPushButton("Descontar")
+
+        self.layout.addWidget(self.cotizacion_widget)
+        self.layout.addWidget(self.descontar_widget)
+
+        self.cotizacion_widget.clicked.connect(self.cotizacionHandler)
+        self.descontar_widget.clicked.connect(self.descontarHandler)
+
+        self.centerOnScreen()
+        # self.resize(600, 570)
+
+    def centerOnScreen(self):
+        resolution = QtWidgets.QDesktopWidget().screenGeometry()
+        self.move((resolution.width() / 2) - (self.frameSize().width() / 2),
+                  (resolution.height() / 2) - (self.frameSize().height() / 2))
+
+    def cotizacionHandler(self):
+        CotizacionWindow().show()
+
+    def descontarHandler(self):
+        DescontarWindow().show()
