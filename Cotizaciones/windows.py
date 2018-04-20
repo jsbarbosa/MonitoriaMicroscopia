@@ -14,9 +14,10 @@ import correo
 import config
 import constants
 
-CLIENTES_DATAFRAME = pd.read_excel(constants.CLIENTES_FILE)
-REGISTRO_DATAFRAME = pd.read_excel(constants.REGISTRO_FILE)
+def readDataFrames():
+    return pd.read_excel(constants.CLIENTES_FILE), pd.read_excel(constants.REGISTRO_FILE)
 
+CLIENTES_DATAFRAME, REGISTRO_DATAFRAME = readDataFrames()
 
 class Table(QtWidgets.QTableWidget):
     HEADER = ['Código', 'Descripción', 'Cantidad', 'Precio Unitario', 'Precio Total']
@@ -161,6 +162,7 @@ class AutoLineEdit(QtWidgets.QLineEdit):
         self.textChanged.connect(self.change)
 
     def change(self, value):
+        global CLIENTES_DATAFRAME, REGISTRO_DATAFRAME
         if type(self.parent) is CotizacionWindow:
             dataframe = CLIENTES_DATAFRAME
             range_ = len(self.parent.FIELDS) -3
@@ -173,7 +175,6 @@ class AutoLineEdit(QtWidgets.QLineEdit):
             rows = df.shape[0]
         except TypeError as e:
             rows = 0
-            print(e)
 
         if (rows == 1) and (self.target in self.AUTOCOMPLETE):
             for i in range(range_):
@@ -254,7 +255,6 @@ class ChangeCotizacion(QtWidgets.QDialog):
     def accept2(self):
         self.parent.loadCotizacion(self.cotizacion_widget.text())
         self.accept()
-
 
 class CotizacionWindow(QtWidgets.QMainWindow):
     IGNORE = ["Proyecto", "Código"]
@@ -403,6 +403,8 @@ class CotizacionWindow(QtWidgets.QMainWindow):
         self.changeEquipo(0)
         self.centerOnScreen()
 
+        self.cotizacion = None
+
     def centerOnScreen(self):
         resolution = QtWidgets.QDesktopWidget().screenGeometry()
         self.move((resolution.width() / 2) - (self.frameSize().width() / 2),
@@ -448,15 +450,19 @@ class CotizacionWindow(QtWidgets.QMainWindow):
             self.table.setCantidades(c.cantidades)
 
             self.numero_cotizacion.setText(name)
+            self.cotizacion = c
         except FileNotFoundError as e:
             self.errorWindow(e)
 
     def changeEquipo(self, index):
+        self.updateCotizacionNumber()
+        self.table.clean()
+
+    def updateCotizacionNumber(self):
         year = str(datetime.datetime.now().year)[-2:]
         last = self.getLastCotizacion()
         equipo = self.equipo_widget.currentText()[0]
         self.numero_cotizacion.setText("%s%s-%04d"%(equipo, year, last + 1))
-        self.table.clean()
 
     def getLastCotizacion(self):
         global REGISTRO_DATAFRAME
@@ -464,11 +470,9 @@ class CotizacionWindow(QtWidgets.QMainWindow):
             equipo = self.equipo_widget.currentText()
             df = REGISTRO_DATAFRAME[REGISTRO_DATAFRAME["Equipo"] == equipo]
             val = df["Cotización"].values[0]
-
             cod, last = val.split("-")
         except Exception as e:
             return 0
-
         year = int(str(datetime.datetime.now().year)[-2:])
         if year > int(cod[1:]): print("Here"); return 0
         else: return int(last)
@@ -536,15 +540,16 @@ class CotizacionWindow(QtWidgets.QMainWindow):
 
             REGISTRO_DATAFRAME.to_excel(writer, index = False)
 
+            registro = {}
+            usos = None
+            if self.cotizacion != None:
+                registro = self.cotizacion.registro_cambios
+                usos = self.cotizacion.usos
             fields.append(last)
-            cot = lib.Cotizacion(fields, equipo, codigos, cantidades)
+            cot = lib.Cotizacion(fields, equipo, codigos, cantidades, usos = usos, cambios = registro)
             cot.save()
             self.generatePDF(cot.id)
-
             self.sendEmail(cot.correo, cot.id)
-            # if self.notificar.isChecked():
-            # correo.sendCotizacion(cot.correo, )
-
             self.nombre_widget.update()
             self.limpiar()
 
@@ -561,6 +566,7 @@ class CotizacionWindow(QtWidgets.QMainWindow):
             else:
                 self.interno_widget.setChecked(2)
         self.table.clean()
+        self.cotizacion = None
 
     def errorWindow(self, exception):
         error_text = str(exception)
@@ -661,6 +667,9 @@ class DescontarWindow(QtWidgets.QMainWindow):
         self.init_size = (400, 100)
         self.resize(*self.init_size)
 
+    def updateDataFrames(self):
+        self.cotizacion_widget.update()
+
     def guardarHandler(self):
         if self.cotizacion != None:
             vals = [spin.value() for spin in self.floats_spins]
@@ -742,8 +751,25 @@ class MainWindow(QtWidgets.QMainWindow):
         self.cotizacion_widget.clicked.connect(self.cotizacionHandler)
         self.descontar_widget.clicked.connect(self.descontarHandler)
 
+        self.cotizacion_window = CotizacionWindow()
+        self.descontar_window = DescontarWindow()
+
         self.centerOnScreen()
+
+        self.update_timer = QtCore.QTimer()
+        self.update_timer.setInterval(1000)
+        self.update_timer.timeout.connect(self.updateDataFrames)
+        self.update_timer.start()
         # self.resize(600, 570)
+
+    def updateDataFrames(self):
+        global CLIENTES_DATAFRAME, REGISTRO_DATAFRAME
+        cli, reg = readDataFrames()
+        if (not cli.equals(CLIENTES_DATAFRAME)) | (not reg.equals(REGISTRO_DATAFRAME)):
+            CLIENTES_DATAFRAME = cli
+            REGISTRO_DATAFRAME = reg
+            self.cotizacion_window.updateCotizacionNumber()
+            self.descontar_window.updateDataFrames()
 
     def centerOnScreen(self):
         resolution = QtWidgets.QDesktopWidget().screenGeometry()
@@ -751,7 +777,7 @@ class MainWindow(QtWidgets.QMainWindow):
                   (resolution.height() / 2) - (self.frameSize().height() / 2))
 
     def cotizacionHandler(self):
-        CotizacionWindow().show()
+        self.cotizacion_window.show()
 
     def descontarHandler(self):
-        DescontarWindow().show()
+        self.descontar_window.show()
