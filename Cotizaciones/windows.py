@@ -23,92 +23,94 @@ class Table(QtWidgets.QTableWidget):
     HEADER = ['Código', 'Descripción', 'Cantidad', 'Precio Unitario', 'Precio Total']
     def __init__(self, parent, rows = 10, cols = 5):
         super(QtWidgets.QTableWidget, self).__init__(rows, cols)
-
         self.parent = parent
-
         self.n_rows = rows
         self.n_cols = cols
-
         self.setHorizontalHeaderLabels(self.HEADER)
         self.resizeRowsToContents()
 
         header = self.horizontalHeader()
-
         header.setSectionResizeMode(0, QtWidgets.QHeaderView.ResizeToContents)
         header.setSectionResizeMode(1, QtWidgets.QHeaderView.Stretch)
         header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
         header.setSectionResizeMode(3, QtWidgets.QHeaderView.ResizeToContents)
         header.setSectionResizeMode(4, QtWidgets.QHeaderView.ResizeToContents)
-
-        self.readOnly()
+        self.clean()
 
         self.cellChanged.connect(self.handler)
+        self.IS_CLEANING = False
 
     def handler(self, row, col):
         item = self.item(row, col)
-
-        try:
-            if col == 0:
-                equipo = eval("constants.%s"%self.parent.equipo_widget.currentText())
-                interno = self.parent.interno_widget.checkState()
-
-                val = "Externo"
-                if interno: val = "Interno"
-
-                try: cod = int(str(int(item.text()))[-1])
-                except: cod = -1
-
-                t = []
-                try:
-                    t = [self.item(i, 0).text() for i in range(self.n_rows)]
-                    del t[row]
-                except:
-                    pass
-
-                if str(cod) in t:
-                    self.item(row, 0).setText('')
-                    raise(Exception("Código %d ya se encuentra registrado."%cod))
-
-                line = equipo[equipo["Código"] == cod]
-                if line.shape[0] == 1:
-                    d = line["Descripción"].values[0]
-                    val = line[val].values[0]
-
-                    self.item(row, 1).setText(d)
-                    self.item(row, 3).setText("{:,}".format(val))
-
+        n = 1
+        val = 0
+        self.blockSignals(True)
+        if not self.IS_CLEANING:
+            try:
+                if col == 0:
+                    equipo = eval("constants.%s"%self.parent.equipo_widget.currentText())
+                    interno = self.parent.interno_widget.checkState()
+                    val = "Externo"
+                    if interno: val = "Interno"
+                    try: cod = int(str(int(item.text()))[-1])
+                    except: cod = -1
+                    t = []
                     try:
-                        n = int(self.item(row, 2).text().replace(",", ""))
+                        t = [self.item(i, 0).text() for i in range(self.n_rows)]
+                        del t[row]
                     except:
+                        pass
+
+                    if str(cod) in t:
+                        self.item(row, 0).setText('')
+                        raise(Exception("Código %d ya se encuentra registrado."%cod))
+
+                    line = equipo[equipo["Código"] == cod]
+                    if line.shape[0] == 1:
+                        d = line["Descripción"].values[0]
+                        val = line[val].values[0]
+                        self.item(row, 1).setText(d)
+                        self.item(row, 3).setText("{:,}".format(val))
+                        try:
+                            n = round(float(self.item(row, 2).text().replace(",", "")), 1)
+                        except:
+                            n = 1
+                        # self.item(row, 4).setText("{:,}".format(val * n))
+                if col == 2:
+                    try:
+                        val = int(self.item(row, 3).text().replace(",", ""))
+                        n = round(float(self.item(row, 2).text().replace(",", "")), 1)
+                    except:
+                        val = 0
                         n = 1
+                if col == 4:
+                    try:
+                        total = int(self.item(row, 4).text().replace(",", ""))
+                        val = int(self.item(row, 3).text(). replace(",", ""))
+                        n = total / val
+                        self.item(row, 2).setText("%.1f"%n)
+                    except: pass
+                try: self.item(row, 4).setText("{:,}".format(int(val * n)))
+                except: pass
+                total = self.getTotal()
+                self.parent.total_widget.setText(total)
 
-                    self.item(row, 4).setText("{:,}".format(val * n))
+            except Exception as e:
+                self.parent.errorWindow(e)
 
-            if col == 2:
-                try:
-                    val = int(self.item(row, 3).text().replace(",", ""))
-                    n = int(self.item(row, 2).text().replace(",", ""))
-                except:
-                    val = 0
-                    n = 1
-
-                self.item(row, 4).setText("{:,}".format(val * n))
-
-            total = self.getTotal()
-            self.parent.total_widget.setText(total)
-        except Exception as e:
-            self.parent.errorWindow(e)
+        self.blockSignals(False)
 
     def getTotal(self):
         total = 0
         for i in range(self.n_rows):
-            text = self.item(i, 4).text().replace(",", "")
+            try: text = self.item(i, 4).text().replace(",", "")
+            except AttributeError: text = ""
             try:
-                val = int(text)
+                val = round(float(text), 1)
             except:
                 val = 0
             total += val
-        return "{:,}".format(total)
+        return "{:,}".format(int(total))
 
     def setCodigos(self, codigos):
         for i in range(len(codigos)):
@@ -116,36 +118,48 @@ class Table(QtWidgets.QTableWidget):
 
     def setCantidades(self, cantidades):
         for i in range(len(cantidades)):
-            self.item(i, 2).setText(cantidades[i])
+            try:
+                val = float(cantidades[i])
+                self.item(i, 2).setText("%.1f"%val)
+            except: pass
 
     def getCodigos(self):
         return [self.item(i, 0).text() for i in range(self.n_rows)]
 
     def getCantidades(self):
-        return [self.item(i, 2).text() for i in range(self.n_rows)]
+        new = [""]*self.n_rows
+        for i in range(self.n_rows):
+            try:
+                total = int(self.item(i, 4).text().replace(",", ""))
+                price = int(self.item(i, 3).text().replace(",", ""))
+                new[i] = "%f"%(total / price)
+            except: pass
+        return new
 
     def updateInterno(self):
         for i in range(self.n_rows):
             self.handler(i, 0)
 
     def clean(self):
+        self.IS_CLEANING = True
         for r in range(self.n_rows):
             for c in range(self.n_cols):
                 item = QtWidgets.QTableWidgetItem("")
                 self.setItem(r, c, item)
         self.readOnly()
+        self.IS_CLEANING = False
 
     def readOnly(self):
         flags = QtCore.Qt.ItemIsEditable
         for r in range(self.n_rows):
-            for c in [1, 3, 4]:
+            for c in [1, 3]:
                 item = QtWidgets.QTableWidgetItem("")
                 item.setFlags(flags)
                 self.setItem(r, c, item)
 
 class AutoLineEdit(QtWidgets.QLineEdit):
     AUTOCOMPLETE = ["Nombre", "Correo", "Documento", "Teléfono", "Cotización"]
-    def __init__(self, target, parent):
+    def __init__(self, target, parent, autochange = True):
         super(QtWidgets.QLineEdit, self).__init__()
         self.target = target
         self.parent = parent
@@ -159,14 +173,14 @@ class AutoLineEdit(QtWidgets.QLineEdit):
 
         self.update()
 
-        self.textChanged.connect(self.change)
+        if autochange: self.textChanged.connect(self.change)
 
     def change(self, value):
         global CLIENTES_DATAFRAME, REGISTRO_DATAFRAME
         if type(self.parent) is CotizacionWindow:
             dataframe = CLIENTES_DATAFRAME
             range_ = len(self.parent.FIELDS) -3
-        elif (type(self.parent) is ChangeCotizacion) or (type(self.parent) is DescontarWindow):
+        else:
             dataframe = REGISTRO_DATAFRAME
             range_ = len(self.parent.FIELDS)
 
@@ -195,7 +209,7 @@ class AutoLineEdit(QtWidgets.QLineEdit):
         if type(self.parent) is CotizacionWindow:
             dataframe = CLIENTES_DATAFRAME
             order = 1
-        elif (type(self.parent) is ChangeCotizacion) or (type(self.parent) is DescontarWindow):
+        else:
             dataframe = REGISTRO_DATAFRAME
             order = -1
         data = list(set(dataframe[self.target].values.astype('str')))
@@ -397,6 +411,8 @@ class CotizacionWindow(QtWidgets.QMainWindow):
         self.guardar_button.clicked.connect(self.guardar)
         self.limpiar_button.clicked.connect(self.limpiar)
 
+        self.CURRENT_INDEX_INIT = True
+
         self.numero_cotizacion.clicked.connect(self.changeCotizacion)
         self.equipo_widget.currentIndexChanged.connect(self.changeEquipo)
 
@@ -456,7 +472,10 @@ class CotizacionWindow(QtWidgets.QMainWindow):
 
     def changeEquipo(self, index):
         self.updateCotizacionNumber()
-        self.table.clean()
+        if not self.CURRENT_INDEX_INIT:
+            self.table.clean()
+        else:
+            self.CURRENT_INDEX_INIT = not self.CURRENT_INDEX_INIT
 
     def updateCotizacionNumber(self):
         year = str(datetime.datetime.now().year)[-2:]
@@ -503,7 +522,7 @@ class CotizacionWindow(QtWidgets.QMainWindow):
 
             fields2 = fields[:4] + fields[7:]
 
-            fecha = datetime.datetime.now()
+            fecha = datetime.datetime.now().replace(microsecond = 0)
             equipo = self.equipo_widget.currentText()
             valor = int(self.total_widget.text().replace(",", ""))
 
@@ -536,7 +555,7 @@ class CotizacionWindow(QtWidgets.QMainWindow):
             REGISTRO_DATAFRAME = REGISTRO_DATAFRAME.reset_index(drop = True)
 
             writer = pd.ExcelWriter("Registro.xlsx", engine='xlsxwriter',
-                        datetime_format= "dd/mm/yy hh:mm:ss")
+                        datetime_format= "dd/mm/yy hh:mm")
 
             REGISTRO_DATAFRAME.to_excel(writer, index = False)
 
@@ -591,7 +610,6 @@ class CotizacionWindow(QtWidgets.QMainWindow):
             self.codigo_widget.setText("")
 
         self.table.updateInterno()
-
 
 class DescontarWindow(QtWidgets.QMainWindow):
     FIELDS = ["Cotización", "Fecha", "Nombre", "Correo", "Equipo", "Valor"]
@@ -705,12 +723,15 @@ class DescontarWindow(QtWidgets.QMainWindow):
         for i in range(n):
             cod = QtWidgets.QLabel(table[i, 0])
             dec = QtWidgets.QLabel(table[i, 1])
-            paid = int(table[i, 2])
-            used = int(table[i, 3])
-            spin = QtWidgets.QSpinBox()
-            total = QtWidgets.QLabel("%d/%d"%(used, paid))
+            paid = round(float(table[i, 2]), 1)
+            used = round(float(table[i, 3]), 1)
+            # spin = QtWidgets.QSpinBox()
+            spin = QtWidgets.QDoubleSpinBox()
+            total = QtWidgets.QLabel("%.1f/%.1f"%(used, paid))
             spin.setMinimum(0)
+            spin.setDecimals(1)
             spin.setMaximum(paid - used)
+            spin.setSingleStep(0.1)
             self.item_layout.addWidget(cod, i + 1, 0)
             self.item_layout.addWidget(dec, i + 1, 1)
             self.item_layout.addWidget(spin, i + 1, 2)
@@ -732,6 +753,109 @@ class DescontarWindow(QtWidgets.QMainWindow):
         self.cotizacion = None
         self.resize(*self.init_size)
 
+class PandasModel(QtCore.QAbstractTableModel):
+    def __init__(self, data, parent=None):
+        QtCore.QAbstractTableModel.__init__(self, parent)
+        self._data = data
+        self.headerdata = data.keys()
+
+    def rowCount(self, parent=None):
+        return len(self._data.values)
+
+    def columnCount(self, parent=None):
+        return self._data.columns.size
+
+    def data(self, index, role = QtCore.Qt.DisplayRole):
+        if index.isValid():
+            if role == QtCore.Qt.DisplayRole:
+                return QtCore.QVariant(str(
+                    self._data.values[index.row()][index.column()]))
+        return QtCore.QVariant()
+
+    def headerData(self, col, orientation, role):
+        if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
+            return QtCore.QVariant(self.headerdata[col])
+        return QtCore.QVariant()
+
+class BuscarWindow(QtWidgets.QMainWindow):
+    WIDGETS = ["equipo", "nombre", "institucion", "responsable"]
+    FIELDS = ["Equipo", "Nombre", "Institución", "Responsable"]
+    def __init__(self, parent = None):
+        super(QtWidgets.QMainWindow, self).__init__(parent)
+        self.setWindowTitle("Buscar")
+
+        wid = QtWidgets.QWidget(self)
+        self.setCentralWidget(wid)
+
+        self.layout = QtWidgets.QVBoxLayout(wid)
+
+        form = QtWidgets.QFrame()
+        layout = QtWidgets.QHBoxLayout(form)
+
+        self.form1 = QtWidgets.QFrame()
+        self.form1_layout = QtWidgets.QFormLayout(self.form1)
+        self.form2 = QtWidgets.QFrame()
+        self.form2_layout = QtWidgets.QFormLayout(self.form2)
+
+        self.from_form = QtWidgets.QFrame()
+        self.to_form = QtWidgets.QFrame()
+        self.from_layout = QtWidgets.QHBoxLayout(self.from_form)
+        self.to_layout = QtWidgets.QHBoxLayout(self.to_form)
+
+        layout.addWidget(self.form1)
+        layout.addWidget(self.form2)
+
+        self.equipo_widget = AutoLineEdit('Equipo', self, False)
+        self.nombre_widget = AutoLineEdit('Nombre', self, False)
+        self.institucion_widget = AutoLineEdit("Institución", self, False)
+        self.responsable_widget = AutoLineEdit("Responsable", self, False)
+        # self.
+
+
+        self.form1_layout.addRow(QtWidgets.QLabel('Equipo'), self.equipo_widget)
+        self.form1_layout.addRow(QtWidgets.QLabel('Nombre'), self.nombre_widget)
+        self.form2_layout.addRow(QtWidgets.QLabel('Institución'), self.institucion_widget)
+        self.form2_layout.addRow(QtWidgets.QLabel('Responsable'), self.responsable_widget)
+
+        self.form1_layout.addRow(self.from_form, self.to_form)
+
+        self.equipo_widget.textChanged.connect(lambda: self.getChanges('Equipo'))
+        self.nombre_widget.textChanged.connect(lambda: self.getChanges('Nombre'))
+        self.institucion_widget.textChanged.connect(lambda: self.getChanges('Institución'))
+        self.responsable_widget.textChanged.connect(lambda: self.getChanges('Responsable'))
+
+        self.table = QtWidgets.QTableView()
+        self.layout.addWidget(form)
+        self.layout.addWidget(self.table)
+
+        model = PandasModel(REGISTRO_DATAFRAME)
+        self.table.setModel(model)
+        self.table.resizeRowsToContents()
+        self.table.resizeColumnsToContents()
+        font = QtGui.QFont("Courier New", 8)
+        self.table.setFont(font)
+
+        self.resize(800, 600)
+
+    def getChanges(self, source):
+        global REGISTRO_DATAFRAME
+
+        bools = np.ones(REGISTRO_DATAFRAME.shape[0], dtype = bool)
+
+        for i in range(len(self.WIDGETS)):
+            source = self.FIELDS[i]
+            widget = self.WIDGETS[i]
+            value = eval("self.%s_widget"%widget).text()
+            if value != "":
+                pos = REGISTRO_DATAFRAME[source].str.contains(value, case = False, na = False)
+                bools *= pos
+
+        old = self.table.model()._data
+
+        df = REGISTRO_DATAFRAME[bools]
+        if not old.equals(df):
+            self.table.setModel(PandasModel(df))
+
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, parent = None):
         super(QtWidgets.QMainWindow, self).__init__(parent)
@@ -744,15 +868,19 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.cotizacion_widget = QtWidgets.QPushButton("Generar/Modificar Cotización")
         self.descontar_widget = QtWidgets.QPushButton("Descontar")
+        self.buscar_widget = QtWidgets.QPushButton("Buscar")
 
         self.layout.addWidget(self.cotizacion_widget)
         self.layout.addWidget(self.descontar_widget)
+        self.layout.addWidget(self.buscar_widget)
 
         self.cotizacion_widget.clicked.connect(self.cotizacionHandler)
         self.descontar_widget.clicked.connect(self.descontarHandler)
+        self.buscar_widget.clicked.connect(self.buscarHandler)
 
         self.cotizacion_window = CotizacionWindow()
         self.descontar_window = DescontarWindow()
+        self.buscar_window = BuscarWindow()
 
         self.centerOnScreen()
 
@@ -760,7 +888,6 @@ class MainWindow(QtWidgets.QMainWindow):
         self.update_timer.setInterval(1000)
         self.update_timer.timeout.connect(self.updateDataFrames)
         self.update_timer.start()
-        # self.resize(600, 570)
 
     def updateDataFrames(self):
         global CLIENTES_DATAFRAME, REGISTRO_DATAFRAME
@@ -781,3 +908,6 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def descontarHandler(self):
         self.descontar_window.show()
+
+    def buscarHandler(self):
+        self.buscar_window.show()

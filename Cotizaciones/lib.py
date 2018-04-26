@@ -47,10 +47,10 @@ class Cotizacion():
                 value = line[self.interno].values[0]
                 desc = line["Descripción"].values[0]
                 left = self.usos[i]
-                try: left = int(left)
+                try: left = round(float(left), 1)
                 except: left = 0
 
-                try: n = int(n)
+                try: n = round(float(n), 1)
                 except: n = 1
 
                 line = [cod, desc, n, left]
@@ -70,15 +70,16 @@ class Cotizacion():
                 line = equipo[equipo["Código"] == cod]
                 value = line[self.interno].values[0]
                 desc = line["Descripción"].values[0]
-                try: n = int(n)
+                try: n = float(n)
                 except: n = 1
-                total += value * n
-                line = [cod, desc, n, "{:,}".format(value), "{:,}".format(value * n)]
+                t = int(round(value * n))
+                total += t
+                line = [cod, desc, round(n, 1), "{:,}".format(value), "{:,}".format(t)]
                 table.append(line)
             except ValueError:
                 pass
         if total != 0:
-            return table, "{:,}".format(total)
+            return table, "{:,}".format(int(total))
         else:
             raise(Exception("Ningún servicio ha sido cotizado."))
 
@@ -93,7 +94,7 @@ class Cotizacion():
             for i in w:
                 sub[cods[i]] = values[i]
                 j = self.codigos.index(cods[i])
-                try: before = int(self.usos[j])
+                try: before = round(float(self.usos[j]), 1)
                 except ValueError: before = 0
                 self.usos[j] = before + values[i]
             self.registro_cambios[date] = sub
@@ -116,25 +117,12 @@ class Cotizacion():
                 line = equipo[equipo["Código"] == int(cod)]
                 desc = line["Descripción"].values[0]
                 i = self.codigos.index(cod)
-                cantidades = int(self.cantidades[i])
+                cantidades = round(float(self.cantidades[i]), 1)
                 usos = made[cod]
                 current[i] += usos
                 left = cantidades - current[i]
                 temp = [fecha.split("-")[0], cod, desc, cantidades, usos, left]
                 table.append(temp)
-        # else:
-        #     fecha = datetime.strftime(datetime.now(), "%Y/%m/%d")
-        #     for cod in sorted(self.codigos):
-        #         if cod != "":
-        #             line = equipo[equipo["Código"] == int(cod)]
-        #             desc = line["Descripción"].values[0]
-        #             i = self.codigos.index(cod)
-        #
-        #             cantidades = int(self.cantidades[i])
-        #             left = cantidades - current[i]
-        #             temp = [fecha, cod, desc, cantidades, 0, left]
-        #             table.append(temp)
-        #             dones.append(cod)
 
         fecha = datetime.strftime(datetime.now(), "%Y/%m/%d")
         for cod in sorted(self.codigos):
@@ -142,7 +130,7 @@ class Cotizacion():
                 line = equipo[equipo["Código"] == int(cod)]
                 desc = line["Descripción"].values[0]
                 i = self.codigos.index(cod)
-                cantidades = int(self.cantidades[i])
+                cantidades = round(float(self.cantidades[i]), 1)
                 left = cantidades - current[i]
                 temp = [desc, cantidades, left]
                 resumen.append(temp)
