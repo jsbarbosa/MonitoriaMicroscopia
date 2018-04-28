@@ -22,14 +22,11 @@ QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create('Fusion')) # <- C
 
 icon = QtGui.QIcon('icon.ico')
 app.setWindowIcon(icon)
-# app.processEvents()
 
 # splash_pix = QtGui.QPixmap('logo.png').scaledToWidth(600)
 # splash = QtWidgets.QSplashScreen(splash_pix, QtCore.Qt.WindowStaysOnTopHint)
 # splash.show()
 
-icon = QtGui.QIcon('icon.ico')
-app.setWindowIcon(icon)
 app.processEvents()
 
 if PREPARE:
@@ -37,8 +34,8 @@ if PREPARE:
     correo.initCorreo()
     print("Email done")
 
-# main = CotizacionWindow()
-main = MainWindow()
+main = CotizacionWindow()
+# main = MainWindow()
 main.setWindowIcon(icon)
 # splash.close()
 main.show()
