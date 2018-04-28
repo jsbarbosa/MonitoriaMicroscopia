@@ -256,11 +256,12 @@ class ChangeCotizacion(QtWidgets.QDialog):
         self.accept()
 
 class CorreoDialog(QtWidgets.QDialog):
-    def __init__(self, to, file_name, is_cotizacion = True):
+    def __init__(self, args, target = correo.sendCotizacion):
         super(CorreoDialog, self).__init__()
         self.setWindowTitle("Enviando correo...")
 
-        self.is_cotizacion = is_cotizacion
+        self.args = args
+
         self.layout = QtWidgets.QVBoxLayout()
         self.setLayout(self.layout)
 
@@ -269,9 +270,10 @@ class CorreoDialog(QtWidgets.QDialog):
 
         self.setModal(True)
 
-        self.thread = Thread(target = self.sendCorreo, args=(to, file_name))
+        self.thread = Thread(target = self.sendCorreo, args=(target,))
         self.thread.setDaemon(True)
         self.timeout = Thread(target = self.timeout, args = (60,))
+        self.timeout.setDaemon(True)
 
         self.finished = False
         self.exception = None
@@ -291,10 +293,11 @@ class CorreoDialog(QtWidgets.QDialog):
         else:
             event.ignore()
 
-    def sendCorreo(self, to, file_name):
+    def sendCorreo(self, func):
         try:
-            if self.is_cotizacion: correo.sendCotizacion(to, file_name)
-            else: correo.sendRegistro(to, file_name)
+            func(*self.args)
+            # if self.is_cotizacion: correo.sendCotizacion(to, file_name)
+            # else: correo.sendRegistro(to, file_name)
         except Exception as e:
             self.exception = e
         self.finished = True
@@ -523,7 +526,7 @@ class CotizacionWindow(QtWidgets.QMainWindow):
         if self.notificar_widget.isChecked():
             to = self.cotizacion.getUsuario().getCorreo()
             file_name = self.cotizacion.getNumero()
-            self.dialog = CorreoDialog(to, file_name)
+            self.dialog = CorreoDialog((to, file_name))
             self.dialog.start()
             self.dialog.exec_()
             if self.dialog.exception != None:
@@ -616,15 +619,6 @@ class CotizacionWindow(QtWidgets.QMainWindow):
         self.move((resolution.width() / 2) - (self.frameSize().width() / 2),
                   (resolution.height() / 2) - (self.frameSize().height() / 2))
 
-    def errorWindow(self, exception):
-        error_text = str(exception)
-        msg = QtWidgets.QMessageBox()
-        msg.setIcon(QtWidgets.QMessageBox.Warning)
-        msg.setText(error_text)
-        msg.setWindowTitle("Error")
-        msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
-        msg.exec_()
-
     def addServicio(self, servicio):
         self.cotizacion.addServicio(servicio)
 
@@ -650,6 +644,15 @@ class CotizacionWindow(QtWidgets.QMainWindow):
         if total == None:
             total = self.cotizacion.getTotal()
         self.total_widget.setText("{:,}".format(total))
+
+    def errorWindow(self, exception):
+        error_text = str(exception)
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setText(error_text)
+        msg.setWindowTitle("Error")
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        msg.exec_()
 
 class NoNotificacion(QtWidgets.QMessageBox):
     def __init__(self):
@@ -741,7 +744,7 @@ class DescontarWindow(QtWidgets.QMainWindow):
         if self.notificar_widget.isChecked():
             to = self.cotizacion.getUsuario().getCorreo()
             file_name = self.cotizacion.getNumero()
-            self.dialog = CorreoDialog(to, file_name, is_cotizacion = False)
+            self.dialog = CorreoDialog((to, file_name), target = correo.sendRegistro)
             self.dialog.start()
             self.dialog.exec_()
             if self.dialog.exception != None:
@@ -751,14 +754,17 @@ class DescontarWindow(QtWidgets.QMainWindow):
 
     def guardarHandler(self):
         servicios = self.cotizacion.getServicios()
-        if len(servicios):
-            for i in range(len(self.floats_spins)):
-                val = self.floats_spins[i].value()
-                servicio = servicios[i]
-                servicio.descontar(val)
-            self.cotizacion.save(to_cotizacion = False)
-            self.sendCorreo()
-        self.clean()
+        try:
+            if len(servicios):
+                for i in range(len(self.floats_spins)):
+                    val = self.floats_spins[i].value()
+                    servicio = servicios[i]
+                    servicio.descontar(val)
+                self.cotizacion.save(to_cotizacion = False)
+                self.sendCorreo()
+            self.clean()
+        except Exception as e:
+            self.errorWindow(e)
 
     def clean(self):
         for widget in self.WIDGETS: exec("self.%s_widget.setText('')"%widget)
@@ -812,6 +818,15 @@ class DescontarWindow(QtWidgets.QMainWindow):
         self.floats_spins = []
         self.cotizacion = objects.Cotizacion()
         self.resize(*self.init_size)
+
+    def errorWindow(self, exception):
+        error_text = str(exception)
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setText(error_text)
+        msg.setWindowTitle("Error")
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        msg.exec_()
 
 class PandasModel(QtCore.QAbstractTableModel):
     def __init__(self, data, parent = None):
@@ -998,25 +1013,29 @@ class BuscarWindow(QtWidgets.QMainWindow):
 class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, parent = None):
         super(QtWidgets.QMainWindow, self).__init__(parent)
-        self.setWindowTitle("Centro de Microscopía")
+        self.setWindowTitle(config.CENTRO)
 
         wid = QtWidgets.QWidget(self)
         self.setCentralWidget(wid)
 
         self.layout = QtWidgets.QHBoxLayout(wid)
 
+        self.request_widget = QtWidgets.QPushButton("Solicitar información")
         self.cotizacion_widget = QtWidgets.QPushButton("Generar/Modificar Cotización")
         self.descontar_widget = QtWidgets.QPushButton("Descontar")
         self.buscar_widget = QtWidgets.QPushButton("Buscar")
 
+        self.layout.addWidget(self.request_widget)
         self.layout.addWidget(self.cotizacion_widget)
         self.layout.addWidget(self.descontar_widget)
         self.layout.addWidget(self.buscar_widget)
 
+        self.request_widget.clicked.connect(self.requestHandler)
         self.cotizacion_widget.clicked.connect(self.cotizacionHandler)
         self.descontar_widget.clicked.connect(self.descontarHandler)
         self.buscar_widget.clicked.connect(self.buscarHandler)
 
+        self.request_window = RequestWindow()
         self.cotizacion_window = CotizacionWindow()
         self.descontar_window = DescontarWindow()
         self.buscar_window = BuscarWindow()
@@ -1047,8 +1066,58 @@ class MainWindow(QtWidgets.QMainWindow):
     def descontarHandler(self):
         self.descontar_window.show()
 
+    def requestHandler(self):
+        self.request_window.show()
+
     def buscarHandler(self):
         self.buscar_window.show()
+
+class RequestWindow(QtWidgets.QMainWindow):
+    def __init__(self, parent = None):
+        super(QtWidgets.QMainWindow, self).__init__(parent)
+        self.setWindowTitle("Solicitar información")
+
+        wid = QtWidgets.QWidget(self)
+        self.setCentralWidget(wid)
+
+        self.layout = QtWidgets.QHBoxLayout(wid)
+
+        form1 = QtWidgets.QFrame()
+        hlayout1 = QtWidgets.QHBoxLayout(form1)
+
+        label = QtWidgets.QLabel("Correo:")
+        self.correo_widget = QtWidgets.QLineEdit()
+        self.enviar_button = QtWidgets.QPushButton("Enviar")
+        self.correo_widget.setFixedWidth(220)
+
+        hlayout1.addWidget(label)
+        hlayout1.addWidget(self.correo_widget)
+        hlayout1.addWidget(self.enviar_button)
+        self.layout.addWidget(form1)
+
+        self.enviar_button.clicked.connect(self.sendCorreo)
+
+    def sendCorreo(self):
+        text = self.correo_widget.text()
+        try:
+            if ("@" in text) and ("." in text):
+                self.dialog = CorreoDialog((text,), correo.sendRequest)
+                self.dialog.start()
+                self.dialog.exec_()
+                if self.dialog.exception != None:
+                    raise(self.dialog.exception)
+            else: raise(Exception("Correo no válido."))
+        except Exception as e:
+            self.errorWindow(e)
+
+    def errorWindow(self, exception):
+        error_text = str(exception)
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Warning)
+        msg.setText(error_text)
+        msg.setWindowTitle("Error")
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        msg.exec_()
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)

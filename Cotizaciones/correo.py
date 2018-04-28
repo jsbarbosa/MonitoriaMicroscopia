@@ -3,7 +3,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
-from config import COTIZACION_MENSAJE, COTIZACION_SUBJECT, SERVER, PORT, REPORTE_MENSAJE, REPORTE_SUBJECT
+from config import COTIZACION_MENSAJE, COTIZACION_SUBJECT, SERVER, PORT, REPORTE_MENSAJE, REPORTE_SUBJECT, REQUEST_SUBJECT, REQUEST_MENSAJE
 from login import *
 
 import constants
@@ -17,7 +17,6 @@ def initCorreo():
     CORREO.starttls() #Puts connection to SMTP server in TLS mode
     CORREO.ehlo()
     CORREO.login(FROM, PASSWORD)
-
 
 def sendEmail(to, subject, text, attachments = []):
     global CORREO
@@ -52,3 +51,6 @@ def sendCotizacion(to, file_name):
 
 def sendRegistro(to, file_name):
     sendEmail(to, REPORTE_SUBJECT + " - %s"%file_name, REPORTE_MENSAJE, [file_name + "_Reporte"])
+
+def sendRequest(to):
+    sendEmail(to, REQUEST_SUBJECT, REQUEST_MENSAJE)

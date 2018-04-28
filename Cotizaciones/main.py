@@ -37,4 +37,5 @@ QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create('Fusion')) # <- C
 main.setWindowIcon(icon)
 splash.close()
 main.show()
-app.exec_()
+
+sys.exit(app.exec_())

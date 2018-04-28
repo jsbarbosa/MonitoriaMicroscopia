@@ -38,7 +38,7 @@ class PDFBase():
 
         self.story.append(FrameBreak())
 
-        ptext = '<font size = 12><b>%s</b></font>' % "CENTRO DE MICROSCOPÍA - UNIVERSIDAD DE LOS ANDES"
+        ptext = '<font size = 12><b>%s</b></font>' % "%s - UNIVERSIDAD DE LOS ANDES"%CENTRO.upper()
         self.story.append(Paragraph(ptext, self.styles["Center"]))
 
         self.story.append(Spacer(1, 12))
@@ -92,7 +92,7 @@ class PDFBase():
             self.story.append(Paragraph(ptext, self.styles["Center"]))
 
     def drawPage(self, canvas, doc):
-        canvas.setTitle("Centro de Microscopía")
+        canvas.setTitle(CENTRO)
         canvas.setSubject("Cotización")
         canvas.setAuthor("Juan Barbosa")
         canvas.setCreator("MicroBill")
