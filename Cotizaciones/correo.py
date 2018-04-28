@@ -21,34 +21,31 @@ def initCorreo():
 
 def sendEmail(to, subject, text, attachments = []):
     global CORREO
-    try:
-        msg = MIMEMultipart()
-        msg['Subject'] = subject
-        msg['From'] = FROM
+    msg = MIMEMultipart()
+    msg['Subject'] = subject
+    msg['From'] = FROM
 
-        msg['To'] = to
-        msg['Cc'] = FROM
+    msg['To'] = to
+    msg['Cc'] = FROM
 
-        body = MIMEText(text, 'html')
-        msg.attach(body)
+    body = MIMEText(text, 'html')
+    msg.attach(body)
 
-        for item in attachments:
-            name = os.path.join(constants.PDF_DIR, item + ".pdf")
-            with open(name, "rb") as file:
-                app = MIMEApplication(file.read())
-                app.add_header('Content-Disposition', 'attachment', filename = item + ".pdf")
-                msg.attach(app)
+    for item in attachments:
+        name = os.path.join(constants.PDF_DIR, item + ".pdf")
+        with open(name, "rb") as file:
+            app = MIMEApplication(file.read())
+            app.add_header('Content-Disposition', 'attachment', filename = item + ".pdf")
+            msg.attach(app)
 
-        to = [to, FROM]
+    to = [to, FROM]
 
+    if CORREO != None:
+        CORREO.sendmail(FROM, to, msg.as_string())
+    else:
+        initCorreo()
         if CORREO != None:
             CORREO.sendmail(FROM, to, msg.as_string())
-        else:
-            initCorreo()
-            if CORREO != None:
-                CORREO.sendmail(FROM, to, msg.as_string())
-    except:
-        pass
 
 def sendCotizacion(to, file_name):
     sendEmail(to, COTIZACION_SUBJECT + " - %s"%file_name, COTIZACION_MENSAJE, [file_name])

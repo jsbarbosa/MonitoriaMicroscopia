@@ -1,26 +1,33 @@
+import os
 import pickle
 import numpy as np
 import pandas as pd
 from datetime import datetime
 
 import constants
+from pdflib import PDFCotizacion, PDFReporte
+
+from unidecode import unidecode
+
+if os.path.isdir(constants.OLD_DIR): pass
+else: os.makedirs(constants.OLD_DIR)
 
 def readDataFrames():
-    c = pd.read_excel(constants.CLIENTES_FILE).astype(str)
-    r = pd.read_excel(constants.REGISTRO_FILE).astype(str)
+    c = pd.read_excel(constants.CLIENTES_FILE).fillna("").astype(str)
+    r = pd.read_excel(constants.REGISTRO_FILE).fillna("").astype(str)
     return c, r
 
 CLIENTES_DATAFRAME, REGISTRO_DATAFRAME = readDataFrames()
 
 class Cotizacion(object):
-    def __init__(self, numero = None, usuario = None, servicios = []):
+    def __init__(self, numero = None, usuario = None, servicios = [], muestra = None):
         self.numero = numero
         self.usuario = usuario
-
+        self.muestra = muestra
         self.setServicios(servicios)
 
-    def getNombreUsuario(self):
-        return self.usuario.getNombre()
+    def getUsuario(self):
+        return self.usuario
 
     def getInterno(self):
         return self.usuario.getInterno()
@@ -41,8 +48,14 @@ class Cotizacion(object):
     def getServicios(self):
         return self.servicios
 
+    def getMuestra(self):
+        return self.muestra
+
     def setNumero(self, numero):
         self.numero = numero
+
+    def setUsuario(self, usuario):
+        self.usuario = usuario
 
     def setServicios(self, servicios):
         codigos = [servicio.getCodigo() for servicio in servicios]
@@ -50,6 +63,9 @@ class Cotizacion(object):
             raise(Exception("Existe un código repetido."))
         else:
             self.servicios = servicios
+
+    def setMuestra(self, muestra):
+        self.muestra = muestra
 
     def removeServicio(self, index):
         del self.servicios[index]
@@ -74,6 +90,11 @@ class Cotizacion(object):
         for servicio in self.servicios:
             usos = servicio.makeReporteTable()
             table += usos
+        if len(table):
+            table = np.array(table, dtype = str)
+            pos = np.argsort(table[:, 0])
+            table = table[pos]
+            return list(table)
         return table
 
     def makeResumenTable(self):
@@ -83,14 +104,50 @@ class Cotizacion(object):
             table.append(row)
         return table
 
-    def save(self):
-        file = "data.pkl"
+    def save(self, to_cotizacion = True):
+        file = os.path.join(constants.OLD_DIR, self.numero + ".pkl")
         with open(file, 'wb') as output:
             pickle.dump(self, output, pickle.HIGHEST_PROTOCOL)
 
+        if to_cotizacion:
+            self.usuario.save()
+            self.toRegistro()
+            self.makePDFCotizacion()
+        else:
+            self.makePDFReporte()
+
+    def makePDFReporte(self):
+        PDFReporte(self).doAll()
+
+    def makePDFCotizacion(self):
+        PDFCotizacion(self).doAll()
+
+    def toRegistro(self):
+        global REGISTRO_DATAFRAME
+
+        last = REGISTRO_DATAFRAME.shape[0]
+
+        usuario = self.getUsuario()
+        fields = [self.getNumero(), datetime.now().replace(microsecond = 0),
+                    usuario.getNombre(), usuario.getCorreo(), usuario.getTelefono(),
+                    usuario.getInstitucion(), usuario.getInterno(), usuario.getResponsable(),
+                    self.getMuestra(), self.getServicios()[0].equipo, self.getTotal()]
+
+        REGISTRO_DATAFRAME.loc[last] = fields
+
+        REGISTRO_DATAFRAME = REGISTRO_DATAFRAME.drop_duplicates("Cotización", "last")
+        REGISTRO_DATAFRAME = REGISTRO_DATAFRAME.sort_values("Cotización", ascending = False)
+        REGISTRO_DATAFRAME = REGISTRO_DATAFRAME.reset_index(drop = True)
+
+        writer = pd.ExcelWriter(constants.REGISTRO_FILE, engine='xlsxwriter',
+                    datetime_format= "dd/mm/yy hh:mm:ss")
+
+        REGISTRO_DATAFRAME.to_excel(writer, index = False)
+
     def load(self, file):
+        file = os.path.join(constants.OLD_DIR, file + ".pkl")
         with open(file, "rb") as data:
-            self = pickle.load(data)
+            return pickle.load(data)
 
 class Usuario(object):
     def __init__(self, nombre = None, correo = None, institucion = None, documento = None,
@@ -174,12 +231,29 @@ class Usuario(object):
     def setCodigo(self, codigo):
         self.codigo = codigo
 
+    def save(self):
+        global CLIENTES_DATAFRAME
+
+        last = CLIENTES_DATAFRAME.shape[0]
+
+        fields = []
+        for key in CLIENTES_DATAFRAME.keys():
+            key = unidecode(key)
+            fields.append(eval("self.get%s()"%key))
+
+        CLIENTES_DATAFRAME.loc[last] = fields
+        CLIENTES_DATAFRAME = CLIENTES_DATAFRAME.drop_duplicates("Nombre", "last")
+        CLIENTES_DATAFRAME = CLIENTES_DATAFRAME.sort_values("Nombre")
+        CLIENTES_DATAFRAME.to_excel(constants.CLIENTES_FILE, index = False, na_rep = '')
+
 class Servicio(object):
-    def __init__(self, equipo = None, codigo = None, interno = None, cantidad = None, usos = {}):
+    def __init__(self, equipo = None, codigo = None, interno = None, cantidad = None, usos = None):
         self.equipo = equipo
         self.codigo = codigo
         self.cantidad = cantidad
-        self.usos = usos
+        if usos == None: self.usos = {}
+        else: self.usos = usos
+
         self.interno = interno
 
         self.valor_unitario = None
@@ -230,6 +304,7 @@ class Servicio(object):
 
     def setCantidad(self, cantidad):
         self.cantidad = cantidad
+        self.setRestantes()
         self.setValorTotal()
 
     def setUsos(self, usos):
@@ -263,12 +338,13 @@ class Servicio(object):
 
     def descontar(self, n):
         if self.restantes >= n:
-            today = datetime.strftime(datetime.now(), "%Y/%m/%d")
-            if today in self.usos.keys():
-                self.usos[today] += n
-            else:
-                self.usos[today] = n
-            self.restantes -= n
+            if n > 0:
+                today = datetime.strftime(datetime.now(), "%Y/%m/%d")
+                if today in self.usos.keys():
+                    self.usos[today] += n
+                else:
+                    self.usos[today] = n
+                self.restantes -= n
         else:
             raise(Exception("No es posible descontar tanto."))
 
