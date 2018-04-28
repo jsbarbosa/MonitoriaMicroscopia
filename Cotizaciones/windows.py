@@ -540,8 +540,10 @@ class CotizacionWindow(QtWidgets.QMainWindow):
                     if value: value = "Interno"
                     else: value = "Externo"
                 else: value = eval("self.%s_widget.text()"%key)
-                if (value == "") and not (key in self.IGNORE):
-                    raise(Exception("Existen campos sin llenar en la información del usuario."))
+                if ((value == "") and not (key in self.IGNORE)):
+                    if (key == "responsable") and not self.interno_widget.isChecked():
+                        pass
+                    else: raise(Exception("Existen campos sin llenar en la información del usuario."))
                 dic[key] = value
             del dic["muestra"]
             usuario = objects.Usuario(**dic)
