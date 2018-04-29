@@ -1,45 +1,41 @@
 import os
 import sys
-import lib
 import config
 import constants
+from time import sleep
 from threading import Thread
 from PyQt5 import QtCore, QtGui, QtWidgets
 
 import correo
 from windows import MainWindow
 
-PREPARE = False
-
-if os.path.isdir(constants.OLD_DIR): pass
-else: os.makedirs(constants.OLD_DIR)
-
-if os.path.isdir(constants.PDF_DIR): pass
-else: os.makedirs(constants.PDF_DIR)
+def threadedCorreo():
+    try: correo.initCorreo()
+    except Exception as e: print(e)
 
 app = QtWidgets.QApplication(sys.argv)
-QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create('Fusion')) # <- Choose the style
 
 icon = QtGui.QIcon('icon.ico')
 app.setWindowIcon(icon)
-# app.processEvents()
 
-# splash_pix = QtGui.QPixmap('logo.png').scaledToWidth(600)
-# splash = QtWidgets.QSplashScreen(splash_pix, QtCore.Qt.WindowStaysOnTopHint)
-# splash.show()
-
-icon = QtGui.QIcon('icon.ico')
-app.setWindowIcon(icon)
+splash_pix = QtGui.QPixmap('logo.png').scaledToWidth(600)
+splash = QtWidgets.QSplashScreen(splash_pix, QtCore.Qt.WindowStaysOnTopHint)
+splash.show()
 app.processEvents()
 
-if PREPARE:
-    print("Starting email...")
-    correo.initCorreo()
-    print("Email done")
-
-# main = CotizacionWindow()
 main = MainWindow()
+
+sleep(2)
+
+thread = Thread(target = threadedCorreo)
+thread.setDaemon(True)
+thread.start()
+
+QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create('Fusion')) # <- Choose the style
+# QtWidgets.QApplication.setStyle(QtWidgets.QStyleFactory.create('Windows')) # <- Choose the style
+
 main.setWindowIcon(icon)
-# splash.close()
+splash.close()
 main.show()
-app.exec_()
+
+sys.exit(app.exec_())
