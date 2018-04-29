@@ -83,6 +83,7 @@ class PDFBase():
         self.story.append(Paragraph(ptext, self.styles["Justify"]))
 
     def makeEnd(self):
+        self.story.append(FrameBreak())
         for i in range(len(DEPENDENCIAS)):
             text = DEPENDENCIAS[i]
             if i < 2:
