@@ -83,7 +83,6 @@ class PDFBase():
         self.story.append(Paragraph(ptext, self.styles["Justify"]))
 
     def makeEnd(self):
-        self.story.append(FrameBreak())
         for i in range(len(DEPENDENCIAS)):
             text = DEPENDENCIAS[i]
             if i < 2:
@@ -233,6 +232,7 @@ class PDFCotizacion(PDFBase):
         self.makeTable()
         self.makeObservaciones()
         self.makeTerminos()
+        self.story.append(FrameBreak())
         self.makeEnd()
         temp = PageTemplate(frames = [self.frame1, self.frame2, self.info_frame, self.table_frame,
                         self.observaciones_frame, self.terminos_frame, self.end_frame],
