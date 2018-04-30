@@ -198,7 +198,7 @@ class ChangeCotizacion(QtWidgets.QDialog):
         self.setWindowTitle("Modificar cotización")
         self.parent = parent
         self.setModal(True)
-
+        
         self.layout = QtWidgets.QVBoxLayout()
         self.setLayout(self.layout)
 
@@ -254,6 +254,10 @@ class ChangeCotizacion(QtWidgets.QDialog):
     def accept2(self):
         self.parent.loadCotizacion(self.cotizacion_widget.text())
         self.accept()
+
+    def closeEvent(self, event):
+        self.is_closed = True
+        event.accept()
 
 class CorreoDialog(QtWidgets.QDialog):
     def __init__(self, args, target = correo.sendCotizacion):
@@ -325,6 +329,7 @@ class CotizacionWindow(QtWidgets.QMainWindow):
         self.setCentralWidget(wid)
         self.resize(700, 570)
 
+        self.is_closed = True
         self.verticalLayout = QtWidgets.QVBoxLayout(wid)
 
         self.verticalLayout.setContentsMargins(11, 11, 11, 11)
@@ -340,6 +345,11 @@ class CotizacionWindow(QtWidgets.QMainWindow):
         self.cotizacion_frame_layout.addWidget(self.numero_cotizacion)
 
         self.form_frame_layout = QtWidgets.QGridLayout(self.form_frame)
+        self.form_frame_layout.setContentsMargins(0, 0, 0, 0)
+        self.form_frame_layout.setSpacing(6)
+
+        self.autocompletar_widget = QtWidgets.QCheckBox("Autocompletar")
+        self.autocompletar_widget.setChecked(True)
 
         nombre_label = QtWidgets.QLabel("Nombre:")
         self.nombre_widget = AutoLineEdit("Nombre", self)
@@ -441,6 +451,7 @@ class CotizacionWindow(QtWidgets.QMainWindow):
         self.total_frame_layout.addWidget(self.total_widget)
 
         self.verticalLayout.addWidget(self.cotizacion_frame)
+        self.verticalLayout.addWidget(self.autocompletar_widget)
         self.verticalLayout.addWidget(self.form_frame)
         self.verticalLayout.addWidget(self.table)
         self.verticalLayout.addWidget(self.total_frame)
@@ -462,7 +473,12 @@ class CotizacionWindow(QtWidgets.QMainWindow):
 
     def setAutoCompletar(self):
         for item in self.AUTOCOMPLETE_WIDGETS:
-            exec("self.%s_widget.textChanged.connect(self.autoCompletar)"%item)
+            widget = eval("self.%s_widget"%item)
+            widget.textChanged.connect(self.autoCompletar)
+            widget.returnPressed.connect(self.changeAutocompletar)
+
+    def changeAutocompletar(self):
+        self.autocompletar_widget.setChecked(False)
 
     def updateAutoCompletar(self):
         for item in self.AUTOCOMPLETE_WIDGETS:
@@ -476,11 +492,9 @@ class CotizacionWindow(QtWidgets.QMainWindow):
             cliente = objects.CLIENTES_DATAFRAME.iloc[pos]
 
             if len(pos):
-                n = 0
-                for widget in self.WIDGETS:
-                    if eval("self.%s_widget"%widget).text() == "":
-                        n += 1
-                if n == len(self.WIDGETS) - 1:
+                # if len(pos) > 1:
+                #     print(len(pos))
+                if self.autocompletar_widget.isChecked():
                     for (field, widgetT) in zip(self.FIELDS, self.WIDGETS):
                         if field in objects.CLIENTES_DATAFRAME.keys():
                             val = str(cliente[field].values[0])
@@ -494,6 +508,7 @@ class CotizacionWindow(QtWidgets.QMainWindow):
                                 widget.blockSignals(True)
                                 widget.setText(val)
                                 widget.blockSignals(False)
+
 
     def changeInterno(self, state):
         state = bool(state)
@@ -516,6 +531,7 @@ class CotizacionWindow(QtWidgets.QMainWindow):
             widget.blockSignals(False)
         self.interno_widget.setCheckState(2)
         self.cotizacion.setServicios([])
+        self.autocompletar_widget.setChecked(True)
 
     def numeroCotizacion(self):
         self.dialog = ChangeCotizacion(self)
@@ -1061,15 +1077,23 @@ class MainWindow(QtWidgets.QMainWindow):
                   (resolution.height() / 2) - (self.frameSize().height() / 2))
 
     def cotizacionHandler(self):
+        self.cotizacion_window.setWindowState(self.cotizacion_window.windowState() & ~QtCore.Qt.WindowMinimized | QtCore.Qt.WindowActive)
+        self.cotizacion_window.activateWindow()
         self.cotizacion_window.show()
 
     def descontarHandler(self):
+        self.descontar_window.setWindowState(self.descontar_window.windowState() & ~QtCore.Qt.WindowMinimized | QtCore.Qt.WindowActive)
+        self.descontar_window.activateWindow()
         self.descontar_window.show()
 
     def requestHandler(self):
+        self.request_window.setWindowState(self.request_window.windowState() & ~QtCore.Qt.WindowMinimized | QtCore.Qt.WindowActive)
+        self.request_window.activateWindow()
         self.request_window.show()
 
     def buscarHandler(self):
+        self.buscar_window.setWindowState(self.buscar_window.windowState() & ~QtCore.Qt.WindowMinimized | QtCore.Qt.WindowActive)
+        self.buscar_window.activateWindow()
         self.buscar_window.show()
 
 class RequestWindow(QtWidgets.QMainWindow):
