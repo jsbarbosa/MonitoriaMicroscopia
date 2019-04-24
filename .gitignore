@@ -2,3 +2,7 @@
 *.xls
 *.pdf
 login*
+
+Igor/Data/*
+Igor/Plots/*
+Igor/*.txt
