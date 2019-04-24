@@ -1,21 +1,37 @@
-\documentclass[11pt]{article}
+\documentclass[11pt, letter-size]{article}
 \usepackage[utf8]{inputenc}
 \usepackage[spanish]{babel}
 \usepackage[margin = 3.5cm]{geometry}
 \usepackage{hyperref}
 
-\title{Manual de Usuario}
+%\title{Manual de Usuario}
 
 \newcommand{\centro}{Centro de Microscop\'ia}
 
 \newcommand{\correo}{\url{cmicroscopia@uniandes.edu.co}}
 
 \begin{document}
-	\maketitle
+	\begin{center}
+		\Huge
+		\scshape Manual de Usuario
+		\vspace{2cm}
+		
+		\Large
+		Centro de Microscop\'ia
+		
+		Universidad de los Andes
+		
+		%\normalsize
+		%9 de Octubre de 2018
+	\end{center}
+	
+	%\maketitle
 	\tableofcontents
 	\newpage
 	
 	\section{Introducción}
+	El centro de microscopía de la Universidad de Los Andes, creado en el año 2009 y adscrito a la Vicerrectoría de Investigaciones y Doctorados, es una unidad multiusuario de servicios interdisciplinarios en el área de microscopía. Tiene como objetivo brindar apoyo a toda la comunidad académica e investigativa de la universidad, así como a entidades externas. Posee la infraestructura para prestar servicios especializados en microscopía de campo claro, fluorescencia y microscopía confocal de barrido láser, microscopía de barrido de electrones y microscopía de fuerza atómica. El centro ofrece el servicio y el acceso a instrumentos de microscopía básicos y avanzados a usuarios y miembros de la comunidad académica interesados en diferentes disciplinas del conocimiento y con diversos niveles de experiencia. El centro cuenta con profesionales idóneos y con amplia experiencia en las diferentes técnicas ofrecidas, para las cuales prestan asesoría desde el momento de la elección de la técnica a utilizar hasta el manejo y uso de los equipos que más se adapten a las necesidades y planteamientos experimentales de los usuarios.
+	
 	\section{Solicitud del servicio (usuarios nuevos)}
 	Para el caso de usuarios que busquen usar los servicios del \centro\ por primera vez, es necesario realizar usa asesoria inicial. Este encuentro se realiza con el objetivo de determinar cu\'ales son las necesidades del usuario y c\'omo el \centro\ puede suplirlas.
 	
@@ -44,12 +60,33 @@
 	Antes de hacer uso de los servicios del \centro, es necesario que los usuarios anexen comprobante de pago al correo \correo. En el caso de los usuarios internos el comprobante consiste en la prueba de translado de fondos.
 	
 	\section{Preparaci\'on de la muestra}
-	En ocasiones es posible que las muestras a analizar requieran de alg\'un tipo de preparaci\'on previa al uso de un equipo especializado. Lo anterior es particularmente importante para la microscop\'ia electr\'onica. Raz\'on por la cual en el \centro\ se prestan los siguientes servicios de preparaci\'on:
+	En ocasiones es posible que las muestras a analizar requieran de alg\'un tipo de preparaci\'on previa al uso de un equipo especializado. Lo anterior es particularmente importante para la microscop\'ia electr\'onica. Las muestras destinadas a los microscopios de barrido de electrones (SEM) y el de transmisión de electrones (TEM) deben cumplir con dos condiciones, deben estar secas y ser conductoras con el fin de realizar la observación adecuadamente. Raz\'on por la cual en el \centro\ se prestan los siguientes servicios de preparaci\'on:
+	
 	\subsection{Fijaci\'on}
+	El proceso de fijado es llevado a cabo por medio del uso de glutaraldehído al 2.5 \%, el cual es una solución capaz de formar enlaces entre las moléculas de los tejidos de la muestra, manteniendo su estructura original. Este proceso es indispensable para garantizar la preservación de la microestructura inicial de la muestra orgánica o biológica, puesto que muchos de los equipos aquí manejados requieren de un medio/alto vacío para su funcionamiento.
+	
 	\subsection{Deshidrataci\'on}
+	Esta consiste en la eliminación o extracción total del agua presente en la muestra y se lleva a cabo por medio del uso de etanol, el cual es capaz de desplazar el agua y el glutaraldehído presentes en los tejidos de la muestra, alojándose en el espacio antes ocupado por los mismos.
+	
+	\subsection{Secado por punto cr\'itico}
+	Las muestras orgánicas hidratadas, como polímeros, hidrogeles y almidón; y las biológicas, como células, tejidos y sangre, deben estar secas antes de ser sometidas al microscopio, puesto que este trabaja en un medio de muy baja presión, que ocasiona que el agua y otros líquidos volátiles se evaporen, saliendo violentamente de la muestra y alterando su estructura.
+	
+	En el secado por punto cr\'itico se usa di\'oxido de carbono a temperaturas superiores a 32 $^\circ$C y 73 atm de presi\'on. En este punto el CO$_2$ l\'iquido y gaseoso se hacen indistinguibles obteniendo un flu\'ido con propiedades intermedias que permite reemplazar los l\'iquidos hidratantes presentes al interior de una muestra por CO$_2$, que al final del m\'etodo se evaporar\'a, de esta manera se evita la pérdida o modificación de la estructura original de la muestra.
+	
 	\subsection{Metalizaci\'on}
+	Las muestras destinadas a SEM y el TEM deben ser conductoras para permitir la circulación de los electrones, por lo que las muestras no conductoras deben pasar por un proceso de metalización previo a la observación, que se realiza por medio de:
+	\subsubsection{Sputtering de oro}
+	Consiste en la extracción de átomos de la superficie de un cátodo, en este caso compuesto de oro, por medio del bombardeo del mismo con electrones altamente energ\'eticos, desprendiendo iones que son depositados sobre una muestra en forma de una pel\'icula delgada.
+	
+%	atraídos y llevan a cabo el intercambio de momento con los átomos de la superficie, causando colisiones que permiten la formación de una película delgada de oro en la muestra.
+	
+	\subsubsection{Evaporaci\'on de grafito}
+	Consiste en el paso de corriente por dos minas o barras de grafito de alta pureza al vacío, ubicadas en contraposición en un soporte metálico que funciona como conductor. El intenso flujo electrónico permite la evaporación térmica de carbono, el cual es depositado sobre la muestra, formando una capa muy delgada del mismo y facilitando la conducción. 
+	
 	\subsection{Cortes}
 	\subsubsection{Ultramicr\'otomo}
+	Se utiliza con el fin de hacer a observación detallada de la ultraestructura de la muestra. Para esto, es necesario realizar cortes ultrafinos de secciones del orden de nanómetros, con el fin de observarlas por medio de microscopía de transmisión. Por otro lado, para llevar a cabo el procedimiento es necesario embeber la muestra en una resina, generalmente de tipo epóxica, que funcione como soporte para la realización de los cortes.
+	 
 	\subsubsection{Disco de \'oxido de aluminio}
 	
 	\section{Reserva de equipos}
