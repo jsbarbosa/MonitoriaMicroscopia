@@ -6,3 +6,6 @@ login*
 Igor/Data/*
 Igor/Plots/*
 Igor/*.txt
+
+*.oib
+
