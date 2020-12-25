@@ -1,0 +1,154 @@
+\documentclass[11pt, letterpaper]{article}
+
+\usepackage[margin = 2cm]{geometry}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+%\usepackage{color}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{sectsty}
+\sectionfont{\color{Maroon}}
+
+\title{Agendo Startup}
+
+\newcommand{\bitem}[1]{{\color{Maroon}\item\textbf{#1:}}}
+
+\newcommand{\cmd}[1]{\texttt{#1}}
+
+\begin{document}
+	\maketitle
+	\section{Facility}
+	\begin{enumerate}
+		\item En el panel izquierdo, click derecho en\\
+		\cmd{Configurations -> Facilities -> Add facility}
+		
+		\item Llenar la siguiente informaci\'on
+		\begin{itemize}
+			\bitem{Details}
+			\begin{itemize}
+				\bitem{Name} \cmd{Centro de Microscopia}
+				\bitem{Facility Head} \cmd{Humberto Ibarra}
+				\bitem{Facility Manager} \cmd{Humberto Ibarra}
+				\bitem{External link} \url{https//investigaciones.uniandes.edu.co/es/microscopia/}
+			\end{itemize}
+			
+			\bitem{Financial}
+			\begin{itemize}
+				\bitem{Terms and conditions}
+				\begin{enumerate}
+					\item Para usuarios internos favor realizar el traslado al Centro de beneficios/costos 340121001
+					
+					\item La Universidad no cobra IVA por ser una Institución de educación superior sin ánimo de lucro (Art. 92 de la ley 30 de 1992).
+					
+					\item El contratista se obliga a respetar el carácter confidencial de este documento y de la información, condiciones y documentos relacionados con el mismo, de conformidad con las normas constitucionales y legales aplicables. En consecuencia, el contratista se compromete a no publicar, difundir, comentar o analizar frente a terceros, copiar, reproducir o hacer uso diferente al acordado, de la información que el centro de microscopia le entregue en este documento, ya sea de forma impresa, electrónica, verbal o de cualquier otra manera, o de aquella que el contratista llegue a conocer, teniendo en cuenta que dicha información tiene como finalidad exclusiva, permitir y facilitar la debida prestación de los servicios solicitados.
+				\end{enumerate}
+			\end{itemize}
+			\bitem{Appearance}
+			\begin{itemize}
+				\bitem{Logo}
+				\bitem{Wallpaper}
+			\end{itemize}
+		\end{itemize}
+		
+		\item Click en \cmd{Create facility}, y confirmar la creaci\'on en la parte superior de la pantalla
+	\end{enumerate}
+	
+	\newpage
+	\section{Calendars}
+	\begin{enumerate}
+		\item En el panel izquierdo, click derecho en\\
+		\cmd{Configurations -> Calendars -> Add calendar}
+		
+		\item Llenar la siguiente informaci\'on
+		\begin{enumerate}
+			\bitem{Resource Details}
+			\begin{itemize}
+				\bitem{Name}
+				\bitem{Type}
+				\bitem{Maganer}
+				\bitem{Users with admin access}
+				\bitem{Facility} \cmd{Centro de Microscopia}
+				\bitem{Status} \cmd{Pre-reservation with real-time tracking confirmation}
+				\bitem{Location} \cmd{Campus principal B-101/102}
+				\bitem{Image}
+			\end{itemize}
+			\bitem{Calendar configuration}
+			\begin{itemize}
+				\bitem{Start time} \cmd{8:00}
+				\bitem{End time} \cmd{17:00}
+				\bitem{Default view} \cmd{Weekly}
+				\bitem{Bookings during weekends} \cmd{None}
+				\bitem{Slot resolution} \cmd{60 minutes}
+				\bitem{Scheduling tolerance} \cmd{30}
+				\bitem{Confirmation tolerance} \cmd{24}
+				\bitem{Delete tolerance} \cmd{24}
+				\bitem{Booking notifications} \cmd{Yes}
+				\bitem{Request financial account upon booking} \cmd{Yes}
+			\end{itemize}
+			\bitem{Pricing}
+			\begin{itemize}
+				\bitem{Internal}
+				\bitem{Academic}
+				\bitem{Comercial} 
+			\end{itemize}
+			\bitem{Fields} \cmd{Agregar de acuerdo a cada equipo}
+			\bitem{Power users} \cmd{The power user permission grants access to the resource for extended periods, when this is not available to regular users}
+			\bitem{Real-time usage tracking}
+		\end{enumerate}
+		\item Dar click en finalizar y confirmar.
+	\end{enumerate}
+
+	\newpage
+	\section{Request}
+	\begin{enumerate}
+		\item En el panel izquierdo, click derecho en\\
+		\cmd{Configurations -> Request class -> Add request class}
+		
+		\item Llenar la siguiente informaci\'on
+		\begin{enumerate}
+			\bitem{Class Details}
+			\begin{itemize}
+				\bitem{Name} \cmd{Preparacion de muestras}
+				\bitem{Active} \cmd{Yes}
+				\bitem{Description}
+				\bitem{Facility} \cmd{Centro de Microscopia}
+				\bitem{Type}
+				\bitem{Manager} \cmd{Humberto Ibarra}
+				\bitem{Users with admin access}
+				\bitem{User must select a financial account when submitting a new request} \cmd{Yes}
+				\bitem{Manager can adjust prices after request is approved} \cmd{No}
+				\bitem{Only managers can generate quotes} \cmd{No}
+			\end{itemize}
+			\bitem{Items} \cmd{Deshidratacion}
+			\begin{enumerate}
+				\bitem{General} 
+				\begin{itemize}
+					\bitem{Name} \cmd{Deshidratacion}
+					\bitem{Active} \cmd{Yes}
+					\bitem{Product has sub-items} \cmd{No}
+				\end{itemize}
+				\bitem{Items \& Pricing}
+				\begin{itemize}
+					\bitem{Comment}
+					\bitem{Unit} \cmd{Muestra}
+					\bitem{Pricing}
+				\end{itemize}
+				\bitem{Summary}
+				\bitem{Allow request to be submitted without items} \cmd{No}
+			\end{enumerate}
+			
+			\bitem{Fields} Por ejemplo \cmd{Numero de muestras}
+			\begin{itemize}
+				\bitem{Name} \cmd{Numero de muestras}
+				\bitem{Comment}
+				\bitem{Type} \cmd{Textfield entry - numeric}
+				\bitem{List options}
+				\bitem{Active} \cmd{Yes}
+				\bitem{Required} \cmd{Yes}
+				\bitem{Position} \cmd{0}
+			\end{itemize}
+			
+			\bitem{Milestones}
+			\bitem{Summary}
+		\end{enumerate}
+	\end{enumerate}
+\end{document}
